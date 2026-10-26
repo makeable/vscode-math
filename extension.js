@@ -158,7 +158,7 @@ function updateEditor(editor) {
 
   const drawn = mathDecorations(editor, reveal);
   for (const d of drawn) {
-    hidden.push(d.range);
+    hidden.push(d.hide || d.range);
     math.push(d.decoration);
   }
   // symbols aren't drawn inside maths pictures
@@ -315,10 +315,18 @@ function mathDecorations(editor, reveal) {
     } else {
       css = `vertical-align: ${(-img.descent).toFixed(1)}px;`; // maths baseline on the text baseline
     }
+    // A lone ; or , left on the last line of a multi-line picture is hidden too
+    let hide = null;
+    if (multiLine) {
+      const lastLine = doc.lineAt(last);
+      const rest = lastLine.text.slice(s.range.end.character);
+      if (/^\s*[;,]\s*$/.test(rest)) hide = new vscode.Range(s.range.start, lastLine.range.end);
+    }
     out.push({
       start: s.start,
       end: s.end,
       range: s.range,
+      hide,
       decoration: {
         range: s.range,
         renderOptions: {

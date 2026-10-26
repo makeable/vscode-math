@@ -328,7 +328,7 @@ function freshVar(node, ctx) {
 // a_{i} b_{i} reads like math; fall back to \cdot where juxtaposition would be ambiguous.
 function texTimes(l, r, ctx) {
   const ls = wrap(l, 6, ctx), rs = wrap(r, 7, ctx);
-  const member = x => x.includes('.\\mathit{'); // o.price
+  const member = x => x.includes('{.}\\mathit{'); // o.price
   const ambiguous = /^[\d.]/.test(rs) || r.k === 'neg' || ls === rs || member(ls) || member(rs) ||
     /^\\(?:frac|sum|prod|int)/.test(rs) && /[\d}]$/.test(ls);
   return ambiguous ? `${ls} \\cdot ${rs}` : `${ls} ${rs}`;
@@ -501,7 +501,7 @@ function texNode(n, ctx) {
         if (out !== null) return out;
       }
       if (full && (isModulePath(n.e, ctx) || /^[A-Z]/.test(full))) return texName(full, ctx);
-      return `${wrap(n.e, 10, ctx)}.\\mathit{${n.name.replace(/_/g, '\\_')}}`;
+      return `${wrap(n.e, 10, ctx)}{.}\\mathit{${n.name.replace(/_/g, '\\_')}}`; // {.} keeps the dot tight
     }
     case 'index': {
       // quad(f, a, b)[0]: the value of a function that returns (value, error)

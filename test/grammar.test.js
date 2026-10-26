@@ -75,6 +75,9 @@ const SAMPLES = {
     'const total = xs.reduce((s, x) => s + x, 0);',
     'const r = a / b;',
     'const r2 = a/b;',
+    'const bits = Math.log(x) / Math.LN2;',
+    '// the line after a call divided by something must still be a comment',
+    'const z = f(x) / g(y) + 1;',
     'const d = Math.exp(-x / 2) / Math.sqrt(2);',
     'const y = x > 0 ? x : 0;',
     'const ok = xs.every(x => x > 0);',
@@ -101,5 +104,24 @@ for (const [scope, lines] of Object.entries(SAMPLES)) {
     assert.deepStrictEqual(lines.map((l, i) => `${real[i]}  ${l}`), lines.map((l, i) => `${expected[i]}  ${l}`));
     // and a sanity check that the patterns do fire
     assert.ok(real.includes('tall') && real.includes('medium'));
+  });
+
+  test(`our injection never leaves the host grammar in a different state: ${scope}`, { skip: !fs.existsSync(HOSTS[scope].file) && 'VS Code not installed' }, async () => {
+    // After each sample line, a probe line must tokenize exactly as it does
+    // without our grammar; otherwise we've broken colouring for the rest of the file.
+    const plainRegistry = new vsctm.Registry({
+      onigLib: Promise.resolve({ createOnigScanner: p => new oniguruma.OnigScanner(p), createOnigString: s => new oniguruma.OnigString(s) }),
+      loadGrammar: async s => (HOSTS[s] ? vsctm.parseRawGrammar(fs.readFileSync(HOSTS[s].file, 'utf8'), HOSTS[s].file) : null),
+    });
+    const withUs = await grammar(scope);
+    const plain = await plainRegistry.loadGrammar(scope);
+    const probe = scope === 'source.python' ? '# probe comment' : '// probe comment';
+    const probeScopes = (g, line) => {
+      const first = g.tokenizeLine(line, vsctm.INITIAL);
+      return g.tokenizeLine(probe, first.ruleStack).tokens.map(t => t.scopes.join(' ')).join(' | ');
+    };
+    for (const line of lines) {
+      assert.strictEqual(probeScopes(withUs, line), probeScopes(plain, line), `the line after: ${line}`);
+    }
   });
 }

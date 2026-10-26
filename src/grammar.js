@@ -46,12 +46,16 @@ const SYNTAX_PATTERNS = {
     setComprehension: { match: '\\{(?=[^#\\n]*\\bfor\\b)', scope: 'punctuation.definition.set.mathview' },
   },
   javascript: {
-    // TypeScript's own division rule starts at the whitespace before "/", so ours must too or it loses
+    // Tag the space after "/", not the "/" itself: TypeScript's own rules for
+    // "/" and for ending a function call sit just before it, and an injection
+    // that starts there wins and leaves the grammar stuck. So `a/b` with no
+    // spaces doesn't make the line taller (it is still drawn).
     fraction: [
-      { match: '(?<=[\\w$)\\]])\\s*/(?![/=*])(?=[^\\n]*[^/*]/[^/=*])', scope: 'keyword.operator.arithmetic.mathview', level: 'tall' },
-      { match: '(?<=[\\w$)\\]])\\s*/(?![/=*])', scope: 'keyword.operator.arithmetic.mathview' },
+      { match: '(?<=[^/*]/)\\s+(?=[^\\n]*[^/*]/[^/=*])', scope: 'meta.mathview.fraction', level: 'tall' },
+      { match: '(?<=[^/*]/)\\s+', scope: 'meta.mathview.fraction' },
     ],
-    piecewise: { match: '(?<= )\\?(?= )', scope: 'keyword.operator.ternary.mathview' },
+    // the space after " ? ", so TypeScript still pairs the ? with its :
+    piecewise: { match: '(?<= \\?)\\s+', scope: 'meta.mathview.ternary' },
   },
   julia: {
     fraction: { match: '(?<![/*])\\.?/(?![/=*])', scope: 'keyword.operator.arithmetic.mathview' },

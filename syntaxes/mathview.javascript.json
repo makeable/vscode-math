@@ -16,12 +16,12 @@
       "name": "support.function.mathview meta.mathview.tall"
     },
     {
-      "match": "(?<=[\\w$)\\]])\\s*/(?![/=*])(?=[^\\n]*[^/*]/[^/=*])",
-      "name": "keyword.operator.arithmetic.mathview meta.mathview.tall"
+      "match": "(?<=[^/*]/)\\s+(?=[^\\n]*[^/*]/[^/=*])",
+      "name": "meta.mathview.fraction meta.mathview.tall"
     },
     {
-      "match": "(?<= )\\?(?= )",
-      "name": "keyword.operator.ternary.mathview meta.mathview.tall"
+      "match": "(?<= \\?)\\s+",
+      "name": "meta.mathview.ternary meta.mathview.tall"
     },
     {
       "match": "(?<![\\w.])(?:(?:numeric|mathjs|lodash|Math|math|d3|ss|tf|nj|_|R)\\.)?(?:all|any)(?=\\s*\\([^\\n]*\\bfor\\b)",
@@ -32,8 +32,8 @@
       "name": "support.function.mathview meta.mathview.medium"
     },
     {
-      "match": "(?<=[\\w$)\\]])\\s*/(?![/=*])",
-      "name": "keyword.operator.arithmetic.mathview meta.mathview.medium"
+      "match": "(?<=[^/*]/)\\s+",
+      "name": "meta.mathview.fraction meta.mathview.medium"
     }
   ]
 }

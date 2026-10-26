@@ -24,7 +24,7 @@ const cases = [
   // quantifiers and accessors
   ['xs.every(x => x > 0)', '\\forall\\, x \\in \\mathit{xs}\\colon\\ x > 0'],
   ['xs.some(x => Math.abs(f(x)) < eps)', '\\exists\\, x \\in \\mathit{xs}\\colon\\ \\left|f\\left(x\\right)\\right| < \\epsilon'],
-  ['d3.sum(data, d => d.value)', '\\sum_{d \\in \\mathit{data}} d.\\mathit{value}'],
+  ['d3.sum(data, d => d.value)', '\\sum_{d \\in \\mathit{data}} d{.}\\mathit{value}'],
   ['d3.mean(xs, x => x ** 2)', '\\frac{1}{\\left|\\mathit{xs}\\right|} \\sum_{x \\in \\mathit{xs}} x^{2}'],
   ['_.maxBy(models, m => score(m))', '\\operatorname*{arg\\,max}_{m \\in \\mathit{models}} \\operatorname{score}\\left(m\\right)'],
   // Math
