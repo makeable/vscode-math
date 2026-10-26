@@ -8,9 +8,11 @@ A VS Code extension that makes code read like maths, without changing the file.
 - **Hover** any drawn maths for a bigger version plus its LaTeX, for copying.
 - **Config driven:** everything it knows is in notation tables you can extend per language and per project.
 
-![Big operators typeset in the editor](docs/inline.png)
+![TypeScript reduce pipelines drawn as sums and products; the line with the cursor shows its code](docs/sums.png)
 
-![Calculus and fractions](docs/calculus.png)
+Hovering shows the maths larger, with its LaTeX:
+
+![Hovering a sum shows it larger, with its LaTeX](docs/hover.png)
 
 ## What it draws
 
@@ -67,7 +69,9 @@ JavaScript has no generator syntax, so Math View recognises the usual shapes of 
 
 Which combining operations count is the `mathView.reducers` setting: `{ "+": "sum", "*": "prod", "max": "max", "min": "min", "&&": "all", "||": "any" }`. Symbols for JavaScript include `!==` → ≠, `===` → ≡, `=>` → ↦, `&&` → ∧, `||` → ∨ and `Math.PI` → π.
 
-![TypeScript reduce pipelines drawn as sums](docs/typescript.png)
+![Quantifiers, accessors, argmax and fractions](docs/notation.png)
+
+![Matrices and piecewise cases](docs/linear-algebra.png)
 
 See [`examples/symbols.py`](examples/symbols.py) and [`examples/symbols.ts`](examples/symbols.ts) for all of them.
 
