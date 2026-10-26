@@ -18,7 +18,7 @@ function children(n) {
   for (const [k, v] of Object.entries(n)) {
     if (k === 'start' || k === 'end' || !v || typeof v !== 'object') continue;
     if (Array.isArray(v)) {
-      for (const x of v) {
+      for (const x of v.flat()) { // matrix rows are lists of lists
         if (x && x.k) out.push(x);
         else if (x && x.vars) out.push(...x.vars, x.iter, ...x.conds); // for-clauses
       }

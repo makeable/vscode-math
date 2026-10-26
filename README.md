@@ -44,6 +44,7 @@ Python (with NumPy, SciPy, SymPy, JAX and PyTorch names), Julia, and JavaScript/
 | `np.mean(x)`, `np.std(x)`, `np.var(x)` | x̄, σₓ, Var(x) |
 | `x_hat`, `x_bar`, `v_vec`, `f_prime`, `e1` | x̂, x̄, v⃗, f′, e₁ |
 | Julia: `quadgk(x -> x^2, 0, 1)[1]`, `A'`, `√x`, `a ⋅ b`, `c ? a : b` | ∫, Aᵀ, √x, a·b, cases |
+| Julia: `[1 2; 3 4]`, `[cos(θ) -sin(θ); sin(θ) cos(θ)]`, `[1; 2; 3]` (also over several lines) | matrices and vectors |
 
 ### JavaScript and TypeScript
 
@@ -129,7 +130,7 @@ Everything the extension knows about maths lives in tables: which calls are big 
 | `mathView.functions` | LaTeX templates for function calls |
 | `mathView.identifiers` | Names and constants drawn as LaTeX |
 | `mathView.ranges` | Iterables that become the limits of a sum |
-| `mathView.syntax` | Operators and syntax: `power`, `fraction`, `floorDiv`, `matmul`, `piecewise`, `setComprehension`, `listComprehension`, `lambda`, `adjoint` |
+| `mathView.syntax` | Operators and syntax: `power`, `fraction`, `floorDiv`, `matmul`, `piecewise`, `setComprehension`, `listComprehension`, `lambda`, `adjoint`, `matrix` (Julia, e.g. `"\\begin{pmatrix} $rows \\end{pmatrix}"` for round brackets) |
 | `mathView.nameSuffixes` | Name endings drawn as accents: `_hat` → x̂ (and `xHat` in JavaScript) |
 | `mathView.reducers` | JavaScript: which `reduce` operations become which big operator |
 | `mathView.modulePrefixes` | Module names ignored in lookups, so `np.sqrt` uses `sqrt` |
@@ -197,7 +198,6 @@ Changing `bigOperators`, `functions` or `syntax` can also change which lines are
 - Python, Julia, JavaScript and TypeScript for now. Adding a language means a parser for its expressions, a scanner for its statements and a notation table.
 - JavaScript `reduce` calls that use the index parameter, and plain `for` loops, stay as code.
 - Line heights come from simple per-line patterns, so occasionally a line is made taller than it needs, or maths is scaled down to fit. Two fractions on one line count as tall.
-- Julia matrix literals like `[1 2; 3 4]` aren't drawn yet.
 - When a file is opened already scrolled down, VS Code can show the wrong line numbers in the gutter until you scroll once. This is VS Code not redrawing the gutter after line heights change.
 - The colour of the maths follows light/dark theme, not the exact theme colour.
 
@@ -211,7 +211,7 @@ npm test
 npm run test:vscode
 ```
 
-`npm test` runs the unit tests, including one that runs the generated grammars in VS Code's real TextMate engine against VS Code's own Python and TypeScript grammars. `npm run test:vscode` runs the extension inside your installed VS Code with a throwaway profile and checks the hovers.
+`npm test` runs the unit tests, including one that runs the generated grammars in VS Code's real TextMate engine against VS Code's own Python, TypeScript, JavaScript and Julia grammars. `npm run test:vscode` runs the extension inside your installed VS Code with a throwaway profile and checks the hovers.
 
 Files:
 

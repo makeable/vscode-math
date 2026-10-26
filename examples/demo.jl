@@ -9,3 +9,15 @@ odd_squares(n) = sum(k^2 for k in 1:2:n)
 within(v, lo, hi) = lo <= v <= hi && v != Inf
 
 double = x -> 2x
+
+# Matrix literals: spaces between columns, ; or a new line between rows
+A = [1 2; 3 4]
+
+R = [cos(θ) -sin(θ)
+     sin(θ)  cos(θ)]
+
+v = [1; 2; 3]
+
+normal_eq = inv(A' * A) * A' * y
+
+area = quadgk(x -> exp(-x^2), 0, Inf)[1]

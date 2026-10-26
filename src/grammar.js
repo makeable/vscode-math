@@ -61,6 +61,8 @@ const SYNTAX_PATTERNS = {
     fraction: { match: '(?<![/*])\\.?/(?![/=*])', scope: 'keyword.operator.arithmetic.mathview' },
     floorDiv: { match: '÷', scope: 'keyword.operator.arithmetic.mathview' },
     piecewise: { match: '(?<= )\\?(?= )', scope: 'keyword.operator.ternary.mathview' },
+    // [1 2; 3 4] on one line: tag the space after a ";" with a "]" later on the line
+    matrix: { match: '(?<=;)\\s+(?=[^\\]\\n#]*\\])', scope: 'meta.mathview.matrix' },
   },
 };
 

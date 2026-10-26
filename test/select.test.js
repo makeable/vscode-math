@@ -47,6 +47,11 @@ test('julia: one-line functions and ternaries', () => {
   assert.deepStrictEqual(pieces('s = sum(x[i] for i in 1:n)  # total\n', 'julia'), ['sum(x[i] for i in 1:n)']);
 });
 
+test('julia: a matrix over several lines is one piece', () => {
+  const text = 'R = [cos(θ) -sin(θ)\n     sin(θ)  cos(θ)]\n';
+  assert.deepStrictEqual(pieces(text, 'julia'), ['[cos(θ) -sin(θ)\n     sin(θ)  cos(θ)]']);
+});
+
 test('scan masks comments and strings', () => {
   const { masked } = scan('a = 1  # b / c\nt = "x / y"\n', 'python');
   assert.ok(!masked.includes('/'));

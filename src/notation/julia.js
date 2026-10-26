@@ -58,6 +58,8 @@ module.exports = {
 
   syntax: {
     ...python.syntax,
+    // [1 2; 3 4]: $rows is "1 & 2 \\\\ 3 & 4". Use pmatrix for round brackets.
+    matrix: tall('\\begin{bmatrix} $rows \\end{bmatrix}'),
     matmul: null,
     adjoint: '$1|atom^{\\top}',
   },

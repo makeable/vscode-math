@@ -542,6 +542,9 @@ function texNode(n, ctx) {
       body: tex(n.body, ctx),
     });
     case 'ternary': return texPiecewise(n, ctx);
+    case 'matrix': return texSyntax(ctx, 'matrix', {
+      rows: n.rows.map(r => r.map(x => tex(x, ctx)).join(' & ')).join(' \\\\ '),
+    });
     case 'gen': throw new RenderError('generator outside a big operator');
     case 'str': throw new RenderError('strings are not math');
     case 'star': case 'slice': case 'object': throw new RenderError(n.k);

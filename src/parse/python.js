@@ -20,6 +20,7 @@
 //   {k:'comp', kind:'list'|'set', body, clauses}     comprehension
 //   {k:'lambda', params:[names], body}
 //   {k:'ternary', cond, a, b}        a if cond else b  /  cond ? a : b
+//   {k:'matrix', rows:[[...]]}       Julia [1 2; 3 4]
 
 class ParseError extends Error {}
 
@@ -52,7 +53,8 @@ function tokenize(src, options = {}) {
       i++;
       continue;
     }
-    const str = /^(?:[rRbBuUfF]{0,2})("""|'''|"|')/.exec(src.slice(i));
+    // Python string prefixes (r'', b'', f''); Julia has none, and b' is b followed by an adjoint
+    const str = (options.adjoint ? /^()("""|"|')/ : /^(?:[rRbBuUfF]{0,2})("""|'''|"|')/).exec(src.slice(i));
     if (str && (str[0].length === str[1].length || /^[rRbBuUfF]/.test(c))) {
       const q = str[1];
       let j = i + str[0].length;
@@ -86,6 +88,8 @@ function tokenize(src, options = {}) {
 
 class Parser {
   constructor(src, options = {}) {
+    this.src = src;
+    this.inMatrix = 0; // inside Julia [a b; c d], a space can end an element
     this.t = tokenize(src, options);
     this.p = 0;
     this.power = new Set(options.power || ['**']);
@@ -105,6 +109,14 @@ class Parser {
   }
   // Give a node its source span: from `start` (a token index) to the last token read.
   node(n, start) { n.start = this.t[start].start; n.end = this.last().end; return n; }
+  // The source text between the previous token and token i (spaces, newlines)
+  gapBefore(i = this.p) { return i > 0 ? this.src.slice(this.t[i - 1].end, this.t[i].start) : ''; }
+  // Brackets inside a matrix element are ordinary expressions again: [f(a -b) c]
+  nested(fn) {
+    const m = this.inMatrix;
+    this.inMatrix = 0;
+    try { return fn(); } finally { this.inMatrix = m; }
+  }
 
   /** A whole statement-level expression: allows a bare tuple like `a, b`. */
   parseAll() {
@@ -223,6 +235,8 @@ class Parser {
       if (t.type !== 'op') break;
       const op = BROADCAST[t.value] || t.value;
       if (op !== '+' && op !== '-') break;
+      // In a matrix, `a -b` is two elements but `a - b` and `a-b` are one
+      if (this.inMatrix && /\s/.test(this.gapBefore()) && !/\s/.test(this.gapBefore(this.p + 1))) break;
       this.next();
       l = this.node({ k: 'bin', op, l, r: this.term() }, s);
     }
@@ -279,12 +293,15 @@ class Parser {
     for (;;) {
       if (this.isOp('(') && this.peek().start === this.last().end || (this.isOp('(') && !this.julia)) {
         this.next();
-        e = this.node(this.call(e), s);
-      } else if (this.isOp('[')) {
+        e = this.node(this.nested(() => this.call(e)), s);
+      } else if (this.isOp('[') && !(this.inMatrix && this.peek().start !== this.last().end)) {
         this.next();
-        const idx = [this.subscript()];
-        while (this.accept(',')) idx.push(this.subscript());
-        this.expect(']');
+        const idx = this.nested(() => {
+          const list = [this.subscript()];
+          while (this.accept(',')) list.push(this.subscript());
+          this.expect(']');
+          return list;
+        });
         e = this.node({ k: 'index', e, idx }, s);
       } else if (this.isOp('.') && this.peek(1).type === 'name') {
         this.next();
@@ -380,7 +397,38 @@ class Parser {
   }
 
   // [a, b], [x for x in xs], {a, b}, {x for x in xs}
-  collection(open, close, kind) {
+  // Julia: [1 2; 3 4] and [1 2
+  //                         3 4] are matrices; [a, b] is a list
+  juliaArray() {
+    const s = this.p - 1;
+    if (this.accept(']')) return this.node({ k: 'list', items: [] }, s);
+    this.inMatrix++;
+    let first;
+    try { first = this.expr(); } finally { this.inMatrix--; }
+    if (this.is('for', 'kw') || this.isOp(',') || this.isOp(']')) {
+      // a comprehension or a list: parse it again as one, without matrix rules
+      this.p = s + 1;
+      return this.nested(() => this.collection('[', ']', 'list', true));
+    }
+    const rows = [[first]];
+    this.inMatrix++;
+    try {
+      for (;;) {
+        if (this.accept(']')) break;
+        if (this.accept(';')) { if (rows[rows.length - 1].length) rows.push([]); continue; }
+        const gap = this.gapBefore();
+        if (!/\s/.test(gap) || this.peek().type === 'eof') throw new ParseError('bad matrix');
+        if (/\n/.test(gap) && rows[rows.length - 1].length) rows.push([]);
+        rows[rows.length - 1].push(this.expr());
+      }
+    } finally { this.inMatrix--; }
+    if (!rows[rows.length - 1].length) rows.pop();
+    if (rows.some(r => r.length !== rows[0].length)) throw new ParseError('rows of different lengths');
+    return this.node({ k: 'matrix', rows }, s);
+  }
+
+  collection(open, close, kind, plainJulia) {
+    if (this.julia && open === '[' && !plainJulia) return this.juliaArray();
     const s = this.p - 1;
     if (this.accept(close)) return this.node({ k: kind, items: [] }, s);
     const first = this.expr();
@@ -393,7 +441,6 @@ class Parser {
     if (kind === 'set' && this.isOp(':')) throw new ParseError('dicts are not supported');
     const items = [first];
     while (this.accept(',')) { if (this.isOp(close)) break; items.push(this.expr()); }
-    if (this.julia && this.isOp(';')) throw new ParseError('Julia matrix literals are not supported');
     this.expect(close);
     return this.node({ k: kind, items }, s);
   }
@@ -406,7 +453,7 @@ class Parser {
     if (t.type === 'str') return this.node({ k: 'str', v: t.value }, s);
     if (t.value === '[') return this.collection('[', ']', 'list');
     if (t.value === '{') return this.collection('{', '}', 'set');
-    if (t.value === '(') {
+    if (t.value === '(') return this.nested(() => {
       if (this.accept(')')) return this.node({ k: 'tuple', items: [] }, s);
       const first = this.expr();
       if (this.is('for', 'kw')) {
@@ -423,7 +470,7 @@ class Parser {
       }
       this.expect(')');
       return this.node({ k: 'paren', e: first }, s);
-    }
+        });
     throw new ParseError(`unexpected '${t.value || 'end'}'`);
   }
 }

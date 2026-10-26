@@ -81,7 +81,26 @@ const julia = [
   ['sum(x[1:n])', '\\sum_{i=1}^{n} x_{i}'],
   ['x ≤ y', 'x \\le y'],
   ['n ÷ 2', '\\left\\lfloor \\frac{n}{2} \\right\\rfloor'],
+  // matrix literals: spaces separate columns, ; and newlines separate rows
+  ['[1 2; 3 4]', '\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}'],
+  ['[1 2 3]', '\\begin{bmatrix} 1 & 2 & 3 \\end{bmatrix}'],
+  ['[1; 2; 3]', '\\begin{bmatrix} 1 \\\\ 2 \\\\ 3 \\end{bmatrix}'],
+  ['[1 2\n 3 4]', '\\begin{bmatrix} 1 & 2 \\\\ 3 & 4 \\end{bmatrix}'],
+  ['[a -b; b a]', '\\begin{bmatrix} a & -b \\\\ b & a \\end{bmatrix}'],
+  ["[a' b']", '\\begin{bmatrix} a^{\\top} & b^{\\top} \\end{bmatrix}'],
+  ['[f(a -b) c]', '\\begin{bmatrix} f\\left(a - b\\right) & c \\end{bmatrix}'],
 ];
+
+test('julia: [a - b] and [a, b] are not matrices', () => {
+  assert.strictEqual(latex('[a - b]', JL), '\\left[a - b\\right]');
+  assert.strictEqual(latex('[a, b]', JL), '\\left[a, b\\right]');
+  assert.throws(() => latex('[1 2; 3]', JL)); // ragged rows
+});
+
+test('julia: the matrix template comes from settings', () => {
+  const n = buildNotation('julia', { syntax: { matrix: '\\begin{pmatrix} $rows \\end{pmatrix}' } });
+  assert.strictEqual(latex('[1 2; 3 4]', n), '\\begin{pmatrix} 1 & 2 \\\\ 3 & 4 \\end{pmatrix}');
+});
 
 for (const [src, want] of python) test(`python: ${src}`, () => assert.strictEqual(latex(src), want));
 for (const [src, want] of julia) test(`julia: ${src}`, () => assert.strictEqual(latex(src, JL), want));

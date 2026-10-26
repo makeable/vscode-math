@@ -18,10 +18,12 @@ const HOSTS = {
   'source.python': { file: `${EXT}/python/syntaxes/MagicPython.tmLanguage.json`, ours: 'mathview.python', profile: 'python' },
   'source.ts': { file: `${EXT}/typescript-basics/syntaxes/TypeScript.tmLanguage.json`, ours: 'mathview.javascript', profile: 'javascript' },
   'source.js': { file: `${EXT}/javascript/syntaxes/JavaScript.tmLanguage.json`, ours: 'mathview.javascript', profile: 'javascript' },
+  'source.julia': { file: `${EXT}/julia/syntaxes/julia.tmLanguage.json`, ours: 'mathview.julia', profile: 'julia' },
 };
 const OURS = {
   'mathview.python': path.join(ROOT, 'syntaxes/mathview.python.json'),
   'mathview.javascript': path.join(ROOT, 'syntaxes/mathview.javascript.json'),
+  'mathview.julia': path.join(ROOT, 'syntaxes/mathview.julia.json'),
 };
 
 let registry = null;
@@ -91,6 +93,19 @@ const SAMPLES = {
   ],
 };
 SAMPLES['source.js'] = SAMPLES['source.ts'];
+SAMPLES['source.julia'] = [
+  'total = sum(x[i] for i in 1:n)',
+  'r = a / b',
+  'y = x > 0 ? x : 0',
+  'A = [1 2; 3 4]',
+  'R = [cos(θ) -sin(θ); sin(θ) cos(θ)]',
+  'v = [1 2 3]',
+  "B = A' * A",
+  'ok = all(v > 0 for v in xs)',
+  '# r = a / b',
+  's = "a / b"',
+  'x = y + 2z',
+];
 
 for (const [scope, lines] of Object.entries(SAMPLES)) {
   test(`real grammar agrees with the extension: ${scope}`, { skip: !fs.existsSync(HOSTS[scope].file) && 'VS Code not installed' }, async () => {
@@ -98,7 +113,7 @@ for (const [scope, lines] of Object.entries(SAMPLES)) {
     const ours = lineLevelTester(buildNotation(HOSTS[scope].profile), HOSTS[scope].profile);
     // the extension blanks comments and strings before testing, like the grammar's -comment -string
     const { scan } = require('../src/scan');
-    const lang = HOSTS[scope].profile === 'javascript' ? 'js' : 'python';
+    const lang = { javascript: 'js', julia: 'julia' }[HOSTS[scope].profile] || 'python';
     const masked = scan(lines.join('\n'), lang).masked.split('\n');
     const expected = masked.map(l => (/\S/.test(l) ? ours(l) : 'normal'));
     assert.deepStrictEqual(lines.map((l, i) => `${real[i]}  ${l}`), lines.map((l, i) => `${expected[i]}  ${l}`));
@@ -115,7 +130,7 @@ for (const [scope, lines] of Object.entries(SAMPLES)) {
     });
     const withUs = await grammar(scope);
     const plain = await plainRegistry.loadGrammar(scope);
-    const probe = scope === 'source.python' ? '# probe comment' : '// probe comment';
+    const probe = scope === 'source.python' || scope === 'source.julia' ? '# probe comment' : '// probe comment';
     const probeScopes = (g, line) => {
       const first = g.tokenizeLine(line, vsctm.INITIAL);
       return g.tokenizeLine(probe, first.ruleStack).tokens.map(t => t.scopes.join(' ')).join(' | ');

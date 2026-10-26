@@ -16,6 +16,10 @@
       "name": "keyword.operator.ternary.mathview meta.mathview.tall"
     },
     {
+      "match": "(?<=;)\\s+(?=[^\\]\\n#]*\\])",
+      "name": "meta.mathview.matrix meta.mathview.tall"
+    },
+    {
       "match": "(?<![\\w.])(?:(?:SpecialFunctions|LinearAlgebra|ForwardDiff|Statistics|Calculus|QuadGK|Zygote|Base)\\.)?(?:all|any)(?=\\s*\\([^\\n]*\\bfor\\b)",
       "name": "support.function.mathview meta.mathview.medium"
     },
