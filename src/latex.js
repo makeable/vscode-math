@@ -3,7 +3,7 @@
 
 const { buildNotation } = require('./notation');
 const { toTex } = require('./tex');
-const parsers = { python: require('./parse/python') };
+const parsers = { python: require('./parse/python'), cfamily: require('./parse/cfamily') };
 
 const defaults = {};
 function defaultNotation(profile = 'python') {

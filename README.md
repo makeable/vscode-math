@@ -14,7 +14,9 @@ A VS Code extension that makes code read like maths, without changing the file.
 
 ## What it draws
 
-Python (with NumPy, SciPy, SymPy, JAX and PyTorch names) and Julia. A line is drawn when it contains notation like the examples below; plain code such as `x = y + 2 * z` stays as it is.
+Python (with NumPy, SciPy, SymPy, JAX and PyTorch names), Julia, and JavaScript/TypeScript (with Math, lodash, d3, mathjs, simple-statistics and TensorFlow.js names). A line is drawn when it contains notation like the examples below; plain code such as `x = y + 2 * z` stays as it is.
+
+### Python and Julia
 
 | Code | Drawn as |
 |---|---|
@@ -41,7 +43,33 @@ Python (with NumPy, SciPy, SymPy, JAX and PyTorch names) and Julia. A line is dr
 | `x_hat`, `x_bar`, `v_vec`, `f_prime`, `e1` | x̂, x̄, v⃗, f′, e₁ |
 | Julia: `quadgk(x -> x^2, 0, 1)[1]`, `A'`, `√x`, `a ⋅ b`, `c ? a : b` | ∫, Aᵀ, √x, a·b, cases |
 
-See [`examples/symbols.py`](examples/symbols.py) for all of them in one file.
+### JavaScript and TypeScript
+
+JavaScript has no generator syntax, so Math View recognises the usual shapes of a sum instead: `reduce`, with or without `map` and `filter` before it, over an array, `Array.from({length: n})`, `[...Array(n).keys()]` or `_.range`.
+
+| Code | Drawn as |
+|---|---|
+| `xs.reduce((s, x) => s + x, 0)` | Σ_{x ∈ xs} x |
+| `xs.map(x => x * x).reduce((a, b) => a + b, 0)` | Σ_{x ∈ xs} x·x |
+| `xs.filter(x => x > 0).reduce((a, b) => a * b, 1)` | ∏ over x ∈ xs, x > 0 |
+| `Array.from({length: n}, (_, i) => w[i] * x[i]).reduce(...)` | Σ_{i=0}^{n−1} wᵢxᵢ |
+| `_.range(1, n + 1).reduce((acc, k) => acc * k, 1)` | ∏_{k=1}^{n} k |
+| `xs.reduce((m, x) => Math.max(m, f(x)), -Infinity)` | max over x ∈ xs of f(x) |
+| `xs.every(x => x > 0)`, `xs.some(...)` | ∀ x ∈ xs: x > 0, ∃ … |
+| `_.sumBy(xs, x => f(x))`, `d3.sum(xs, f)`, `d3.mean(xs, f)` | Σ, mean |
+| `_.maxBy(models, m => score(m))` | argmax |
+| `(-b + Math.sqrt(b ** 2 - 4 * a * c)) / (2 * a)` | the quadratic formula |
+| `Math.hypot(dx, dy)`, `Math.log(x) / Math.LN2` | √(dx² + dy²), ln x / ln 2 |
+| `math.multiply(math.inv(...), math.transpose(A))`, `tf.matMul(W, x)` | (AᵀA)⁻¹Aᵀ, Wx |
+| `math.matrix([[1, 2], [3, 4]])` | a bracketed matrix |
+| `x < 0 ? -1 : x === 0 ? 0 : 1` | a piecewise { with cases |
+| `(z: number) => z > 0 ? z : 0` | z ↦ cases |
+
+Which combining operations count is the `mathView.reducers` setting: `{ "+": "sum", "*": "prod", "max": "max", "min": "min", "&&": "all", "||": "any" }`. Symbols for JavaScript include `!==` → ≠, `===` → ≡, `=>` → ↦, `&&` → ∧, `||` → ∨ and `Math.PI` → π.
+
+![TypeScript reduce pipelines drawn as sums](docs/typescript.png)
+
+See [`examples/symbols.py`](examples/symbols.py) and [`examples/symbols.ts`](examples/symbols.ts) for all of them.
 
 Expressions are drawn whole where possible: the right-hand side of an assignment, a `return` value, an `if` condition. Inside something that isn't maths, such as `print(...)` or a tuple, only the maths parts are drawn.
 
@@ -97,7 +125,8 @@ Everything the extension knows about maths lives in tables: which calls are big 
 | `mathView.identifiers` | Names and constants drawn as LaTeX |
 | `mathView.ranges` | Iterables that become the limits of a sum |
 | `mathView.syntax` | Operators and syntax: `fraction`, `floorDiv`, `matmul`, `piecewise`, `setComprehension`, `listComprehension`, `lambda`, `adjoint` |
-| `mathView.nameSuffixes` | Name endings drawn as accents: `_hat` → x̂ |
+| `mathView.nameSuffixes` | Name endings drawn as accents: `_hat` → x̂ (and `xHat` in JavaScript) |
+| `mathView.reducers` | JavaScript: which `reduce` operations become which big operator |
 | `mathView.modulePrefixes` | Module names ignored in lookups, so `np.sqrt` uses `sqrt` |
 | `mathView.symbols` | Symbol substitutions: regex → symbol |
 | `mathView.builtinNotation`, `mathView.builtinSymbols` | Turn off to start from empty tables |
@@ -160,7 +189,8 @@ Changing `bigOperators`, `functions` or `syntax` can also change which lines are
 ## Limitations
 
 - Symbol substitutions are plain pattern matches, so they also apply inside strings and comments.
-- Python and Julia only for now.
+- Python, Julia, JavaScript and TypeScript for now. Adding a language means a parser for its expressions, a scanner for its statements and a notation table.
+- JavaScript `reduce` calls that use the index parameter, and plain `for` loops, stay as code.
 - Line heights come from simple per-line patterns, so occasionally a line is made taller than it needs, or maths is scaled down to fit. Two fractions on one line count as tall.
 - Julia matrix literals like `[1 2; 3 4]` aren't drawn yet.
 - When a file is opened already scrolled down, VS Code can show the wrong line numbers in the gutter until you scroll once. This is VS Code not redrawing the gutter after line heights change.
@@ -176,13 +206,14 @@ npm test
 npm run test:vscode
 ```
 
-`npm test` runs the parser tests. `npm run test:vscode` runs the extension inside your installed VS Code with a throwaway profile and checks the hovers.
+`npm test` runs the unit tests, including one that runs the generated grammars in VS Code's real TextMate engine against VS Code's own Python and TypeScript grammars. `npm run test:vscode` runs the extension inside your installed VS Code with a throwaway profile and checks the hovers.
 
 Files:
 
 - `extension.js`: decorations, hover, settings
 - `src/notation/`: built-in notation tables per language
-- `src/parse/`: expression parsers
+- `src/parse/`: expression parsers (`python.js` also handles Julia; `cfamily.js` handles JavaScript and TypeScript)
+- `src/shapes.js`: turns JavaScript `reduce` pipelines into sums, products and friends
 - `src/scan.js`: finds the expressions in a document (assignments, returns, conditions), skipping strings and comments
 - `src/select.js`: picks the pieces worth drawing
 - `src/tex.js`: parsed code → LaTeX, driven by a notation

@@ -32,4 +32,15 @@ const julia = {
   '(?<=\\bfor \\w+ )in\\b': '∈',
 };
 
-module.exports = { common, byProfile: { python, julia } };
+const javascript = {
+  '!==': '≠',
+  '===': '≡',
+  '=>': '↦',
+  '&&': '∧',
+  '\\|\\|': '∨',
+  '\\bMath\\.PI\\b': 'π',
+  '\\bMath\\.sqrt\\b': '√',
+  '\\bMath\\.E\\b': 'e',
+};
+
+module.exports = { common, byProfile: { python, julia, javascript } };

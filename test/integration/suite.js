@@ -163,6 +163,31 @@ exports.run = async () => {
     assert.strictEqual(at('# Calculus'), 'normal');
   });
 
+  const ts = await vscode.workspace.openTextDocument(path.join(examples, 'symbols.ts'));
+  await check('typescript: every maths line becomes a piece', async () => {
+    assert.strictEqual(ts.languageId, 'typescript');
+    const spans = ext.exports.spansFor(ts);
+    const lines = new Set(spans.map(sp => ts.positionAt(sp.start).line));
+    const text = ts.getText().split('\n');
+    const skip = /^const (area|normal) /; // area has only symbols; normal is drawn inside
+    const expected = text.map((l, i) => [l, i]).filter(([l]) => /^const \w+ = /.test(l) && !skip.test(l)).map(([, i]) => i);
+    assert.deepStrictEqual(expected.filter(i => !lines.has(i)).map(i => text[i]), []);
+  });
+
+  await check('typescript: reduce pipeline hovers as a sum', async () => {
+    const md = await hoverAt(ts, 'xs.map(x => x * x)', 3);
+    assert.ok(md[0] && md[0].includes('\\sum_{x \\in \\mathit{xs}} x \\cdot x'), md[0] && md[0].slice(-150));
+  });
+
+  await check('typescript: line heights', async () => {
+    const levels = ext.exports.levelsFor(ts);
+    const at = needle => levels[ts.positionAt(ts.getText().indexOf(needle)).line];
+    assert.strictEqual(at('const total'), 'tall');
+    assert.strictEqual(at('const allPositive'), 'medium');
+    assert.strictEqual(at('const sign'), 'tall');
+    assert.strictEqual(at('const area'), 'normal');
+  });
+
   console.log('\n' + results.join('\n') + '\n');
   const failed = results.filter(r => r.startsWith('FAIL'));
   if (failed.length) throw new Error(`${failed.length} integration check(s) failed`);

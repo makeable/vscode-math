@@ -1,7 +1,7 @@
 {
   "name": "vscode-math",
   "displayName": "Math View",
-  "description": "Shows code as maths: Σ ∏ ∫ lim, fractions, matrices, piecewise cases, ∀ ∃ and set-builder notation drawn in the editor, plus ≤ ≠ → λ symbols. Files stay plain text.",
+  "description": "Shows code as maths: Σ ∏ ∫ lim, fractions, matrices, piecewise cases, ∀ ∃ and set-builder notation drawn in the editor, plus ≤ ≠ → λ symbols. Python, Julia, JavaScript and TypeScript. Files stay plain text.",
   "version": "0.1.0",
   "publisher": "makeable",
   "license": "MIT",
@@ -184,6 +184,18 @@
           },
           "markdownDescription": "Name endings drawn as accents, with `$1` for the rest of the name: `x_hat` → x̂. Built in: `_hat _bar _tilde _vec _dot _ddot _prime _star _inv _T _sq`. Example: `{ \"_dag\": \"$1^{\\\\dagger}\" }`."
         },
+        "mathView.reducers": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "markdownDescription": "JavaScript/TypeScript: which `reduce` operations become which big operator. Keys are an operator (`+`, `*`, `&&`, `||`) or a function such as `max` (matching `Math.max`); values are names in `mathView.bigOperators`. Built in: `{ \"+\": \"sum\", \"*\": \"prod\", \"max\": \"max\", \"min\": \"min\", \"&&\": \"all\", \"||\": \"any\" }`."
+        },
         "mathView.modulePrefixes": {
           "type": "array",
           "scope": "language-overridable",
@@ -214,6 +226,16 @@
         "path": "./syntaxes/mathview.julia.json",
         "injectTo": [
           "source.julia"
+        ]
+      },
+      {
+        "scopeName": "mathview.javascript",
+        "path": "./syntaxes/mathview.javascript.json",
+        "injectTo": [
+          "source.js",
+          "source.ts",
+          "source.tsx",
+          "source.js.jsx"
         ]
       }
     ],
@@ -246,6 +268,20 @@
     "mathjax-full": "3.2.2"
   },
   "devDependencies": {
-    "@vscode/test-electron": "^2.4.1"
-  }
+    "@vscode/test-electron": "^2.4.1",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.2.0"
+  },
+  "keywords": [
+    "math",
+    "latex",
+    "notation",
+    "python",
+    "julia",
+    "javascript",
+    "typescript",
+    "numpy",
+    "sympy",
+    "ligatures"
+  ]
 }

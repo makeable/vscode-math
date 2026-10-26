@@ -9,7 +9,7 @@
 
 const { render } = require('./tex');
 const { scan } = require('./scan');
-const parsers = { python: require('./parse/python') };
+const parsers = { python: require('./parse/python'), cfamily: require('./parse/cfamily') };
 
 const LITERALS = new Set(['tuple', 'list', 'set']);
 
@@ -71,7 +71,8 @@ function matchBracket(src, open) {
  * Offsets are into `text`.
  */
 function selectSpans(text, notation) {
-  const { regions, masked } = scan(text, notation.profile === 'julia' ? 'julia' : 'python');
+  const lang = { julia: 'julia', javascript: 'js' }[notation.profile] || 'python';
+  const { regions, masked } = scan(text, lang);
   const spans = [];
   for (const r of regions) {
     const src = text.slice(r.start, r.end);

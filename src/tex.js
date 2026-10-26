@@ -7,7 +7,7 @@
 
 const { fill, MissingValue } = require('./template');
 const { simplify } = require('./simplify');
-const parsers = { python: require('./parse/python') };
+const parsers = { python: require('./parse/python'), cfamily: require('./parse/cfamily') };
 
 class RenderError extends Error {}
 
@@ -18,18 +18,45 @@ const has = (o, k) => o && Object.prototype.hasOwnProperty.call(o, k);
 // An entry is a template string, a list of templates tried in order, or an
 // object {template | templates | symbol, display, height, firstOfTuple}.
 
-function entryInfo(entry) {
-  if (entry === null || entry === undefined) return null;
-  if (typeof entry === 'string' || Array.isArray(entry)) return { templates: [].concat(entry), display: true };
-  const templates = [].concat(entry.templates || entry.template || entry.symbol || []);
-  return { ...entry, templates, display: entry.display !== false };
+// Every template an entry offers, each with its own options.
+function alternatives(entry) {
+  if (entry === null || entry === undefined) return [];
+  if (typeof entry === 'string') return [{ template: entry, display: true }];
+  if (Array.isArray(entry)) return entry.flatMap(alternatives);
+  const list = [].concat(entry.templates || entry.template || entry.symbol || []);
+  return list.map(template => ({ ...entry, template, display: entry.display !== false }));
 }
 
-// Try each template until one has all its values.
-function applyTemplates(info, resolve) {
-  for (const t of info.templates) {
-    if (typeof t !== 'string') continue;
-    try { return fill(t, resolve); } catch (e) { if (!(e instanceof MissingValue)) throw e; }
+const HEIGHT_RANK = { normal: 0, medium: 1, tall: 2 };
+
+function entryInfo(entry) {
+  const alts = alternatives(entry);
+  if (!alts.length && !(entry && entry.cases)) return null;
+  const tallest = alts.reduce((h, a) => (HEIGHT_RANK[a.height] > HEIGHT_RANK[h || 'normal'] ? a.height : h), undefined);
+  const first = alts[0] || {};
+  return {
+    ...(typeof entry === 'object' && !Array.isArray(entry) ? entry : {}),
+    alts,
+    templates: alts.map(a => a.template),
+    display: alts.length ? alts.some(a => a.display) : entry.display !== false,
+    height: tallest || (typeof entry === 'object' && entry.height),
+    firstOfTuple: alts.some(a => a.firstOfTuple),
+    lineHint: first.lineHint,
+  };
+}
+
+// Try each template until one has all its values; the one used decides
+// whether the expression is worth drawing and how tall it is.
+function applyTemplates(info, resolve, ctx) {
+  for (const alt of info.alts || []) {
+    if (typeof alt.template !== 'string') continue;
+    let out;
+    try { out = fill(alt.template, resolve); } catch (e) { if (e instanceof MissingValue) continue; throw e; }
+    if (ctx) {
+      if (alt.display) ctx.display = true;
+      note(ctx, alt);
+    }
+    return out;
   }
   return null;
 }
@@ -117,7 +144,19 @@ function isAtomic(n, ctx, s) {
   if (['num', 'name', 'paren', 'index', 'sqrt'].includes(n.k)) return true;
   if (n.k === 'attr' && dottedName(n)) return true;
   if (n.k === 'bin' && n.op === '/') return true;
-  if (n.k === 'call') return /^\\(?:left|sqrt|frac|binom|overline|begin)|^\\[A-Za-z]+\\left/.test(s);
+  if (n.k === 'call') return /^\\(?:left|sqrt|frac|binom|overline|begin)|^\\[A-Za-z]+\\left/.test(s) || !hasTopLevelSpace(s);
+  return false;
+}
+
+// "A^{\\top}" is one symbol, "\\det A" is not
+function hasTopLevelSpace(s) {
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\') { i++; continue; }
+    if (s[i] === '{') depth++;
+    else if (s[i] === '}') depth--;
+    else if (s[i] === ' ' && depth === 0) return true;
+  }
   return false;
 }
 
@@ -152,6 +191,11 @@ function walk(node, path) {
 function applyFilter(node, filter, ctx) {
   if (!filter) return node.k === 'raw' ? texRawParams(node, ctx) : tex(unparen(node), ctx);
   if (filter === 'atom') return atom(node, ctx);
+  if (filter === 'spread') {
+    // Math.max(...xs) -> max xs
+    if (node.k !== 'star') throw new MissingValue('spread');
+    return atom(node.e, ctx);
+  }
   if (filter === 'domain') {
     // range(n) -> {0, ..., n-1}; anything else as it is
     const r = rangeOf(node, ctx);
@@ -221,12 +265,8 @@ function texCall(n, ctx) {
     receiver = n.fn.e;
   }
   if (info) {
-    const out = applyTemplates(info, callResolver(n.args, n.kwargs, receiver, ctx));
-    if (out !== null) {
-      if (info.display) ctx.display = true;
-      note(ctx, info);
-      return out;
-    }
+    const out = applyTemplates(info, callResolver(n.args, n.kwargs, receiver, ctx), ctx);
+    if (out !== null) return out;
   }
 
   // sum(xs) and np.sum(x[a:b]): big operator over a collection
@@ -234,7 +274,7 @@ function texCall(n, ctx) {
   if (big && big.templates.length && !big.templates[0].includes('$')) return texCollection(big.templates[0], n.args[0], ctx);
 
   if (n.args.some(a => a.k === 'star' || a.k === 'str')) throw new RenderError('not a math call');
-  if (name) ctx.opaque = ctx.opaque || ctx.depth === 0;
+  if (name || n.fn.k === 'attr') ctx.opaque = ctx.opaque || ctx.depth === 0;
   const args = n.args.map(a => tex(a, ctx)).join(', ');
   let head;
   if (name && /^[A-Za-z]$/.test(name)) head = name;
@@ -288,7 +328,9 @@ function freshVar(node, ctx) {
 // a_{i} b_{i} reads like math; fall back to \cdot where juxtaposition would be ambiguous.
 function texTimes(l, r, ctx) {
   const ls = wrap(l, 6, ctx), rs = wrap(r, 7, ctx);
-  const ambiguous = /^[\d.]/.test(rs) || r.k === 'neg' || /^\\(?:frac|sum|prod|int)/.test(rs) && /[\d}]$/.test(ls);
+  const member = x => x.includes('.\\mathit{'); // o.price
+  const ambiguous = /^[\d.]/.test(rs) || r.k === 'neg' || ls === rs || member(ls) || member(rs) ||
+    /^\\(?:frac|sum|prod|int)/.test(rs) && /[\d}]$/.test(ls);
   return ambiguous ? `${ls} \\cdot ${rs}` : `${ls} ${rs}`;
 }
 
@@ -441,7 +483,10 @@ function texNode(n, ctx) {
     }
     case 'name': return texName(n.v, ctx);
     case 'raw': return n.s;
-    case 'paren': return `\\left(${tex(n.e, ctx)}\\right)`;
+    case 'paren': {
+      const inner = tex(n.e, ctx);
+      return isAtomic(n.e, ctx, inner) ? inner : `\\left(${inner}\\right)`;
+    }
     case 'neg': return `-${wrap(n.e, 7, ctx)}`;
     case 'not': return `\\lnot ${wrap(n.e, 3, ctx)}`;
     case 'sqrt': ctx.display = true; return n.n ? `\\sqrt[${n.n}]{${tex(unparen(n.e), ctx)}}` : `\\sqrt{${tex(unparen(n.e), ctx)}}`;
@@ -452,11 +497,11 @@ function texNode(n, ctx) {
       // A.T and friends: ".T" in the functions table, with $0 = A
       const info = !isModulePath(n.e, ctx) && entryInfo(lookup(ctx.n.functions, `.${n.name}`, ctx, { arity: 'attr' }));
       if (info) {
-        const out = applyTemplates(info, callResolver([], {}, n.e, ctx));
-        if (out !== null) { if (info.display) ctx.display = true; note(ctx, info); return out; }
+        const out = applyTemplates(info, callResolver([], {}, n.e, ctx), ctx);
+        if (out !== null) return out;
       }
-      if (full) return texName(full, ctx);
-      return `${wrap(n.e, 10, ctx)}.\\mathit{${n.name}}`;
+      if (full && (isModulePath(n.e, ctx) || /^[A-Z]/.test(full))) return texName(full, ctx);
+      return `${wrap(n.e, 10, ctx)}.\\mathit{${n.name.replace(/_/g, '\\_')}}`;
     }
     case 'index': {
       // quad(f, a, b)[0]: the value of a function that returns (value, error)
@@ -499,7 +544,7 @@ function texNode(n, ctx) {
     case 'ternary': return texPiecewise(n, ctx);
     case 'gen': throw new RenderError('generator outside a big operator');
     case 'str': throw new RenderError('strings are not math');
-    case 'star': case 'slice': throw new RenderError(n.k);
+    case 'star': case 'slice': case 'object': throw new RenderError(n.k);
     case 'bin': {
       switch (n.op) {
         case '+': return `${wrap(n.l, 5, ctx)} + ${wrap(n.r, 5, ctx)}`;
@@ -535,6 +580,8 @@ function texNode(n, ctx) {
  *   opaque   the top level is an unknown function call, e.g. print(...)
  */
 function render(node, notation) {
+  // JavaScript: xs.reduce(...) pipelines become generators first
+  if (notation.shapes) node = require('./shapes').normalize(node, notation);
   const ctx = { n: notation, depth: -1 };
   const latex = tex(node, ctx);
   return { latex, display: !!ctx.display, height: ctx.height || 'normal', opaque: !!ctx.opaque };

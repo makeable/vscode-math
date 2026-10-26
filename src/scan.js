@@ -134,4 +134,137 @@ function trimmed(text, start, end) {
   return start < end ? { start, end } : null;
 }
 
-module.exports = { scan };
+// ---------- JavaScript / TypeScript ----------
+
+const JS_SKIP = new Set(['for', 'function', 'class', 'import', 'interface', 'type', 'enum', 'switch', 'case', 'default',
+  'try', 'catch', 'finally', 'do', 'else', 'break', 'continue', 'declare', 'namespace', 'module', 'throw', 'debugger']);
+const JS_PREFIX = /^(?:(?:export|default|async|declare|public|private|protected|static|readonly|override)\s+)*/;
+// Characters that, ending a line, mean the statement goes on (no automatic semicolon)
+const CONTINUES_AFTER = /[=+\-*/%,.?:&|^!<>(\[{]$/;
+const CONTINUES_BEFORE = /^(?:[.?:+\-*/%&|^,)\]}]|=>)/;
+
+function regexCanStart(text, i) {
+  let k = i - 1;
+  while (k >= 0 && /\s/.test(text[k])) k--;
+  if (k < 0) return true;
+  const c = text[k];
+  if (/[\w$]/.test(c)) {
+    const word = /[\w$]+$/.exec(text.slice(Math.max(0, k - 12), k + 1))[0];
+    return ['return', 'typeof', 'case', 'in', 'of', 'yield', 'await', 'void', 'delete'].includes(word);
+  }
+  return !/[)\]}]/.test(c);
+}
+
+function scanJs(text) {
+  const masked = text.split('');
+  const blank = (a, b) => { for (let k = a; k < b; k++) if (masked[k] !== '\n') masked[k] = ' '; };
+  let i = 0;
+  // 1. blank out comments, strings, template literals and regex literals
+  while (i < text.length) {
+    const c = text[i];
+    if (text.startsWith('//', i)) { let j = i; while (j < text.length && text[j] !== '\n') j++; blank(i, j); i = j; continue; }
+    if (text.startsWith('/*', i)) { const j = text.indexOf('*/', i + 2); const e = j < 0 ? text.length : j + 2; blank(i, e); i = e; continue; }
+    if (c === '"' || c === "'" || c === '`') {
+      let j = i + 1, depth = 0;
+      while (j < text.length) {
+        if (text[j] === '\\') { j += 2; continue; }
+        if (c === '`' && text.startsWith('${', j)) { depth++; j += 2; continue; }
+        if (c === '`' && depth && text[j] === '}') { depth--; j++; continue; }
+        if (text[j] === c && !depth) break;
+        if (c !== '`' && text[j] === '\n') break;
+        j++;
+      }
+      j = Math.min(text.length, j + 1);
+      blank(i, j); i = j; continue;
+    }
+    if (c === '/' && regexCanStart(text, i)) {
+      let j = i + 1, cls = false;
+      while (j < text.length && text[j] !== '\n' && (cls || text[j] !== '/')) {
+        if (text[j] === '\\') j++;
+        else if (text[j] === '[') cls = true;
+        else if (text[j] === ']') cls = false;
+        j++;
+      }
+      if (text[j] === '/') {
+        j++;
+        while (j < text.length && /[a-z]/.test(text[j])) j++;
+        blank(i, j); i = j; continue;
+      }
+    }
+    i++;
+  }
+  const m = masked.join('');
+
+  // 2. split into statements at ; { } and line ends (outside ( and [)
+  const statements = [];
+  let depth = 0, start = 0;
+  const top = [];
+  const end = e => { statements.push({ start, end: e, top: top.splice(0) }); start = e + 1; };
+  for (let k = 0; k < m.length; k++) {
+    const c = m[k];
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth = Math.max(0, depth - 1);
+    else if (depth > 0) continue;
+    else if (c === ';' || c === '{' || c === '}') end(k);
+    else if (c === '\n') {
+      const before = m.slice(start, k).trimEnd();
+      const after = m.slice(k + 1, k + 200).trimStart();
+      if (before && (CONTINUES_AFTER.test(before) || CONTINUES_BEFORE.test(after))) continue;
+      end(k);
+    } else if (c === '=' || c === ':' || c === '?') top.push(k);
+  }
+  end(m.length);
+
+  // 3. the expression part of each statement
+  const regions = [];
+  for (const st of statements) {
+    const r = jsExpression(m, st);
+    if (r) regions.push(r);
+  }
+  return { regions, masked: m };
+}
+
+function jsExpression(m, st) {
+  let from = st.start;
+  let to = trimEnd(m, st.start, st.end);
+  while (from < to && /\s/.test(m[from])) from++;
+  if (from >= to) return null;
+  const head = m.slice(from, to);
+  const prefix = JS_PREFIX.exec(head)[0];
+  from += prefix.length;
+  const word = (/^[A-Za-z_$][\w$]*/.exec(m.slice(from, to)) || [''])[0];
+  if (m[from] === '@') return null;
+  if (JS_SKIP.has(word) && !/[\w$.(]/.test(m[from + word.length] || '') ) {
+    if (word !== 'else') return null;
+    // else if (...)
+    from += 4;
+    while (/\s/.test(m[from])) from++;
+    if (!m.startsWith('if', from)) return null;
+  }
+  const w = (/^[A-Za-z_$][\w$]*/.exec(m.slice(from, to)) || [''])[0];
+  if (w === 'if' || w === 'while') {
+    const open = m.indexOf('(', from);
+    if (open < 0 || open >= to) return null;
+    let d = 0, k = open;
+    for (; k < to; k++) { if (m[k] === '(') d++; else if (m[k] === ')') { d--; if (d === 0) break; } }
+    return trimmed(m, open + 1, k);
+  }
+  if (w === 'return' || w === 'yield' || w === 'await') from += w.length;
+  else if (w === 'const' || w === 'let' || w === 'var') {
+    const eq = st.top.find(t => t > from && m[t] === '=' && isAssign(m, t));
+    if (eq === undefined) return null;
+    from = eq + 1;
+  } else {
+    // object property `key: value` (not a ternary)
+    const prop = /^[\w$]+\s*:(?!:)/.exec(m.slice(from, to));
+    if (prop) from += prop[0].length;
+    else {
+      const assigns = st.top.filter(t => t >= from && t < to && m[t] === '=' && isAssign(m, t));
+      if (assigns.length) from = assigns[assigns.length - 1] + 1;
+    }
+  }
+  while (to > from && /[,\s]/.test(m[to - 1])) to--;
+  return trimmed(m, from, to);
+}
+
+module.exports = { scan: (text, lang) => (lang === 'js' ? scanJs(text) : scan(text, lang)) };

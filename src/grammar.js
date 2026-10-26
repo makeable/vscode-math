@@ -18,6 +18,11 @@ const MULTIPLIER = { tall: 2.4, medium: 1.7, normal: 1 };
 const GRAMMARS = {
   python: { file: 'syntaxes/mathview.python.json', scopeName: 'mathview.python', injectTo: ['source.python'] },
   julia: { file: 'syntaxes/mathview.julia.json', scopeName: 'mathview.julia', injectTo: ['source.julia'] },
+  javascript: {
+    file: 'syntaxes/mathview.javascript.json',
+    scopeName: 'mathview.javascript',
+    injectTo: ['source.js', 'source.ts', 'source.tsx', 'source.js.jsx'],
+  },
 };
 
 // Patterns for syntax, per language. Only used when the syntax entry exists.
@@ -31,6 +36,14 @@ const SYNTAX_PATTERNS = {
     floorDiv: { match: '//(?!=)', scope: 'keyword.operator.arithmetic.mathview' },
     piecewise: { match: '(?<=[\\w)\\]\'"] )if\\b(?=[^#\\n]*\\belse\\b)', scope: 'keyword.control.conditional.mathview' },
     setComprehension: { match: '\\{(?=[^#\\n]*\\bfor\\b)', scope: 'punctuation.definition.set.mathview' },
+  },
+  javascript: {
+    // TypeScript's own division rule starts at the whitespace before "/", so ours must too or it loses
+    fraction: [
+      { match: '(?<=[\\w$)\\]])\\s*/(?![/=*])(?=[^\\n]*[^/*]/[^/=*])', scope: 'keyword.operator.arithmetic.mathview', level: 'tall' },
+      { match: '(?<=[\\w$)\\]])\\s*/(?![/=*])', scope: 'keyword.operator.arithmetic.mathview' },
+    ],
+    piecewise: { match: '(?<= )\\?(?= )', scope: 'keyword.operator.ternary.mathview' },
   },
   julia: {
     fraction: { match: '(?<![/*])\\.?/(?![/=*])', scope: 'keyword.operator.arithmetic.mathview' },
@@ -87,6 +100,11 @@ function linePatterns(notation, profile) {
   }
   for (const level of LEVELS) {
     if (fnByLevel[level]) out.push({ level, match: fnByLevel[level].join('|'), scope: 'support.function.mathview' });
+  }
+
+  // JavaScript reduce pipelines become big operators (see shapes.js)
+  if (notation.shapes) {
+    out.push({ level: 'tall', match: '(?<=\\.)reduce(?:Right)?(?=\\s*\\()', scope: 'support.function.mathview' });
   }
 
   // syntax: fractions, piecewise...

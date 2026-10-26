@@ -5,15 +5,20 @@
 const PROFILES = {
   python: require('./python'),
   julia: require('./julia'),
+  javascript: require('./javascript'),
 };
 
 // VS Code language id -> profile name
 const LANGUAGES = {
   python: 'python',
   julia: 'julia',
+  javascript: 'javascript',
+  typescript: 'javascript',
+  javascriptreact: 'javascript',
+  typescriptreact: 'javascript',
 };
 
-const TABLES = ['bigOperators', 'functions', 'identifiers', 'ranges', 'syntax', 'nameSuffixes'];
+const TABLES = ['bigOperators', 'functions', 'identifiers', 'ranges', 'syntax', 'nameSuffixes', 'reducers'];
 
 function profileFor(languageId) {
   return LANGUAGES[languageId] || null;
@@ -52,6 +57,7 @@ function buildNotation(profileName, user = {}) {
     profile: profileName,
     parser: profile.parser,
     options: profile.options || {},
+    shapes: !!profile.shapes,
     modulePrefixes: mergeList(builtin.modulePrefixes, user.modulePrefixes)
       .sort((a, b) => b.length - a.length), // longest first, so np.linalg wins over np
   };
