@@ -1,0 +1,230 @@
+{
+  "name": "vscode-math",
+  "displayName": "Math View",
+  "description": "Shows code with math notation: ≤ ≠ → λ in the editor, and sums like sum(x[i] for i in range(1, n+1)) as a typeset Σ. Files stay plain ASCII.",
+  "version": "0.1.0",
+  "publisher": "makeable",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/makeable/vscode-math.git"
+  },
+  "homepage": "https://github.com/makeable/vscode-math#readme",
+  "bugs": {
+    "url": "https://github.com/makeable/vscode-math/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mathView.toggle",
+        "title": "Math View: Toggle Symbol Substitution"
+      }
+    ],
+    "configuration": {
+      "title": "Math View",
+      "properties": {
+        "mathView.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show symbols like ≤ and → in place of <= and ->."
+        },
+        "mathView.revealOnCursorLine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the original text on lines that have a cursor or selection, so you never edit hidden characters."
+        },
+        "mathView.inline": {
+          "type": "string",
+          "enum": [
+            "tall",
+            "compact",
+            "off"
+          ],
+          "default": "tall",
+          "enumDescriptions": [
+            "Full stacked Σ with limits above and below. Lines containing a sum are made taller to fit.",
+            "Limits beside the Σ so the maths fits a normal line height.",
+            "Leave sums as code; use the hover instead."
+          ],
+          "description": "Show sums as typeset math directly in the editor, on lines without a cursor."
+        },
+        "mathView.hover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show sums like sum(x[i] for i in range(1, n+1)) as typeset math on hover."
+        },
+        "mathView.hoverScale": {
+          "type": "number",
+          "default": 1.4,
+          "minimum": 0.5,
+          "maximum": 4,
+          "description": "Size of the rendered math in hovers."
+        },
+        "mathView.substitutions": {
+          "type": "array",
+          "description": "Text patterns to display as symbols. 'pattern' is a JavaScript regular expression. 'languages' limits a rule to certain language ids; leave it out to apply everywhere.",
+          "items": {
+            "type": "object",
+            "required": [
+              "pattern",
+              "symbol"
+            ],
+            "properties": {
+              "pattern": {
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              },
+              "languages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": [
+            {
+              "pattern": "<=",
+              "symbol": "≤"
+            },
+            {
+              "pattern": ">=",
+              "symbol": "≥"
+            },
+            {
+              "pattern": "!=",
+              "symbol": "≠"
+            },
+            {
+              "pattern": "->",
+              "symbol": "→"
+            },
+            {
+              "pattern": "=>",
+              "symbol": "⇒"
+            },
+            {
+              "pattern": "\\blambda\\b",
+              "symbol": "λ",
+              "languages": [
+                "python"
+              ]
+            },
+            {
+              "pattern": "\\b(?:math\\.|np\\.|numpy\\.)?sqrt\\b",
+              "symbol": "√"
+            },
+            {
+              "pattern": "\\b(?:math\\.|np\\.|numpy\\.)pi\\b",
+              "symbol": "π",
+              "languages": [
+                "python"
+              ]
+            },
+            {
+              "pattern": "\\bnot in\\b",
+              "symbol": "∉",
+              "languages": [
+                "python"
+              ]
+            },
+            {
+              "pattern": "(?<=\\bfor \\w+ )in\\b",
+              "symbol": "∈",
+              "languages": [
+                "python",
+                "julia"
+              ]
+            },
+            {
+              "pattern": "\\binf\\b|\\bInf\\b|\\bInfinity\\b",
+              "symbol": "∞"
+            },
+            {
+              "pattern": "\\balpha\\b",
+              "symbol": "α"
+            },
+            {
+              "pattern": "\\bbeta\\b",
+              "symbol": "β"
+            },
+            {
+              "pattern": "\\bgamma\\b",
+              "symbol": "γ"
+            },
+            {
+              "pattern": "\\bdelta\\b",
+              "symbol": "δ"
+            },
+            {
+              "pattern": "\\bepsilon\\b",
+              "symbol": "ε"
+            },
+            {
+              "pattern": "\\btheta\\b",
+              "symbol": "θ"
+            },
+            {
+              "pattern": "\\bmu\\b",
+              "symbol": "μ"
+            },
+            {
+              "pattern": "\\bsigma\\b",
+              "symbol": "σ"
+            },
+            {
+              "pattern": "\\bomega\\b",
+              "symbol": "ω"
+            }
+          ]
+        }
+      }
+    },
+    "grammars": [
+      {
+        "scopeName": "mathview.injection",
+        "path": "./syntaxes/mathview.injection.json",
+        "injectTo": [
+          "source.python",
+          "source.julia"
+        ]
+      }
+    ],
+    "configurationDefaults": {
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "scope": "meta.mathview.bigop",
+            "settings": {
+              "lineHeight": 2.4
+            }
+          }
+        ]
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/latex.test.js",
+    "package": "npx --yes @vscode/vsce@3.2.1 package",
+    "test:vscode": "node test/integration/run.js"
+  },
+  "dependencies": {
+    "mathjax-full": "3.2.2"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
