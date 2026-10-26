@@ -7,9 +7,10 @@ const { selectSpans } = require('./src/select');
 const { renderDataUri, renderInline } = require('./src/render');
 const { buildNotation, profileFor, TABLES, LANGUAGES } = require('./src/notation');
 const builtinSymbols = require('./src/notation/symbols');
-const { GRAMMARS, MULTIPLIER, buildGrammar, lineLevelTester } = require('./src/grammar');
+const { GRAMMARS, MULTIPLIER, multipliersFor, buildGrammar, lineLevelTester } = require('./src/grammar');
 
 const TALL_SCOPE = 'meta.mathview.tall';
+const MEDIUM_SCOPE = 'meta.mathview.medium';
 
 // ---------- decorations ----------
 //
@@ -181,16 +182,19 @@ function editorMetrics(editor) {
   let lineHeight = ed.get('lineHeight', 0);
   if (lineHeight === 0) lineHeight = Math.round(fontSize * (process.platform === 'darwin' ? 1.5 : 1.35));
   else if (lineHeight < 8) lineHeight = Math.round(lineHeight * fontSize);
-  return { fontSize, lineHeight };
+  return { fontSize, lineHeight, scale: config(editor.document).get('scale', 1) };
 }
 
 const inlineCache = new Map(); // key -> {uri, width, height, descent}
 
 function inlineImage(latex, { display, maxHeight }, metrics) {
   const color = mathColor();
-  const key = `${display}|${maxHeight}|${latex}|${color}|${metrics.fontSize}`;
+  const key = `${display}|${maxHeight}|${latex}|${color}|${metrics.fontSize}|${metrics.scale}`;
   if (inlineCache.has(key)) return inlineCache.get(key);
-  const r = renderInline(latex, { color, fontSize: metrics.fontSize * (display ? 1.1 : 1), maxHeight, display });
+  // Display maths is drawn bigger than the code so limits and scripts stay readable,
+  // then shrunk if it doesn't fit the room the line has.
+  const fontSize = metrics.fontSize * (display ? 1.35 * metrics.scale : 1);
+  const r = renderInline(latex, { color, fontSize, maxHeight, display });
   const file = path.join(storageDir, `${crypto.createHash('sha1').update(key).digest('hex')}.svg`);
   if (!fs.existsSync(file)) fs.writeFileSync(file, r.svg);
   const img = { uri: vscode.Uri.file(file), width: r.width, height: r.height, descent: r.descent };
@@ -207,6 +211,56 @@ function tallLinesActive() {
   return JSON.stringify(v || {}).includes(TALL_SCOPE);
 }
 
+// The line heights VS Code is actually using for tall and medium lines: from the
+// token rules in effect (ours by default, or the user's), so pictures fit them.
+function activeMultipliers() {
+  const v = vscode.workspace.getConfiguration('editor').get('tokenColorCustomizations') || {};
+  const out = { ...MULTIPLIER };
+  const rules = [];
+  (function collect(o) {
+    if (!o || typeof o !== 'object') return;
+    if (Array.isArray(o.textMateRules)) rules.push(...o.textMateRules);
+    for (const [k, x] of Object.entries(o)) if (k.startsWith('[')) collect(x); // theme-specific blocks
+  })(v);
+  for (const r of rules) {
+    const scopes = [].concat(r && r.scope || []);
+    const h = r && r.settings && Number(r.settings.lineHeight);
+    if (!h) continue;
+    if (scopes.includes(TALL_SCOPE)) out.tall = h;
+    if (scopes.includes(MEDIUM_SCOPE)) out.medium = h;
+  }
+  return out;
+}
+
+const isOurRule = r => r && [].concat(r.scope || []).some(x => x === TALL_SCOPE || x === MEDIUM_SCOPE);
+
+// Write our line-height rules into the user's tokenColorCustomizations, or take
+// them out again when the defaults (from package.json) would do the same job.
+async function writeLineHeightRules(scale) {
+  const editorCfg = vscode.workspace.getConfiguration('editor');
+  const current = editorCfg.inspect('tokenColorCustomizations').globalValue || {};
+  const others = (Array.isArray(current.textMateRules) ? current.textMateRules : []).filter(r => !isOurRule(r));
+  const ownSettings = others.length > 0 || Object.keys(current).some(k => k !== 'textMateRules');
+  const m = multipliersFor(scale);
+  let next;
+  if (scale === 1 && !ownSettings) {
+    next = undefined; // the built-in defaults apply
+  } else {
+    next = {
+      ...current,
+      textMateRules: [
+        ...others,
+        { scope: TALL_SCOPE, settings: { lineHeight: m.tall } },
+        { scope: MEDIUM_SCOPE, settings: { lineHeight: m.medium } },
+      ],
+    };
+  }
+  const before = editorCfg.inspect('tokenColorCustomizations').globalValue;
+  if (JSON.stringify(next) !== JSON.stringify(before)) {
+    await editorCfg.update('tokenColorCustomizations', next, vscode.ConfigurationTarget.Global);
+  }
+}
+
 // Your own editor.tokenColorCustomizations replace our default, so offer to add the rules.
 async function offerTallLineRule() {
   if (config().get('inline', 'tall') !== 'tall' || tallLinesActive()) return;
@@ -215,21 +269,8 @@ async function offerTallLineRule() {
     'Math View needs line-height rules in editor.tokenColorCustomizations to show maths full size. ' +
     'Your own token colour settings currently replace them, so maths is shown compact.',
     add, 'Use compact');
-  const editorCfg = vscode.workspace.getConfiguration('editor');
-  if (pick === add) {
-    const current = editorCfg.inspect('tokenColorCustomizations').globalValue || {};
-    const rules = Array.isArray(current.textMateRules) ? current.textMateRules : [];
-    await editorCfg.update('tokenColorCustomizations', {
-      ...current,
-      textMateRules: [
-        ...rules,
-        { scope: 'meta.mathview.tall', settings: { lineHeight: MULTIPLIER.tall } },
-        { scope: 'meta.mathview.medium', settings: { lineHeight: MULTIPLIER.medium } },
-      ],
-    }, vscode.ConfigurationTarget.Global);
-  } else if (pick === 'Use compact') {
-    await config().update('inline', 'compact', vscode.ConfigurationTarget.Global);
-  }
+  if (pick === add) await writeLineHeightRules(config().get('scale', 1));
+  else if (pick === 'Use compact') await config().update('inline', 'compact', vscode.ConfigurationTarget.Global);
 }
 
 // Decorations that replace each piece of maths with its picture.
@@ -244,7 +285,8 @@ function mathDecorations(editor, reveal) {
   if (!analysis) return [];
   const metrics = editorMetrics(editor);
   const tall = mode === 'tall' && tallLinesActive();
-  const heightOf = line => metrics.lineHeight * (tall ? MULTIPLIER[analysis.levels[line]] || 1 : 1);
+  const multipliers = activeMultipliers();
+  const heightOf = line => metrics.lineHeight * (tall ? multipliers[analysis.levels[line]] || 1 : 1);
   const out = [];
   for (const s of analysis.spans) {
     const first = s.range.start.line, last = s.range.end.line;
@@ -419,7 +461,8 @@ function activate(context) {
       if (NOTATION_KEYS.some(k => e.affectsConfiguration(`mathView.${k}`))) {
         syncGrammars(context, { prompt: true });
       }
-      if (e.affectsConfiguration('editor.tokenColorCustomizations')) updateAll();
+      if (e.affectsConfiguration('editor.tokenColorCustomizations')) { inlineCache.clear(); updateAll(); }
+      if (e.affectsConfiguration('mathView.scale')) writeLineHeightRules(config().get('scale', 1));
     }),
     vscode.window.onDidChangeActiveColorTheme(() => { svgCache.clear(); inlineCache.clear(); updateAll(); }),
   );

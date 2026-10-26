@@ -13,7 +13,15 @@
 const { entryInfo } = require('./tex');
 
 const LEVELS = ['tall', 'medium'];
-const MULTIPLIER = { tall: 2.4, medium: 1.7, normal: 1 };
+// Default line heights, as multiples of the editor's line height. mathView.scale
+// stretches the extra room: tall = 1 + 2 * scale, medium = 1 + 1 * scale.
+const MULTIPLIER = { tall: 3, medium: 2, normal: 1 };
+const EXTRA = { tall: 2, medium: 1 };
+
+function multipliersFor(scale = 1) {
+  const r = x => Math.round(x * 100) / 100;
+  return { tall: r(1 + EXTRA.tall * scale), medium: r(1 + EXTRA.medium * scale), normal: 1 };
+}
 
 const GRAMMARS = {
   python: { file: 'syntaxes/mathview.python.json', scopeName: 'mathview.python', injectTo: ['source.python'] },
@@ -136,4 +144,4 @@ function lineLevelTester(notation, profile) {
   };
 }
 
-module.exports = { GRAMMARS, MULTIPLIER, linePatterns, buildGrammar, lineLevelTester };
+module.exports = { GRAMMARS, MULTIPLIER, multipliersFor, linePatterns, buildGrammar, lineLevelTester };

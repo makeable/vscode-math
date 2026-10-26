@@ -66,6 +66,13 @@
           "description": "Draw maths in the editor on lines without a cursor.",
           "scope": "language-overridable"
         },
+        "mathView.scale": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 3,
+          "markdownDescription": "How big to draw maths in `tall` mode. Lines with big notation get this much more room: at `1` a line with Σ is 3× the normal height and one with a fraction 2×; at `1.5` they are 4× and 2.5×. Changing it updates the line-height rules for Math View in your `editor.tokenColorCustomizations`."
+        },
         "mathView.hover": {
           "type": "boolean",
           "default": true,
@@ -245,13 +252,13 @@
           {
             "scope": "meta.mathview.tall",
             "settings": {
-              "lineHeight": 2.4
+              "lineHeight": 3
             }
           },
           {
             "scope": "meta.mathview.medium",
             "settings": {
-              "lineHeight": 1.7
+              "lineHeight": 2
             }
           }
         ]

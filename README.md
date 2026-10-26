@@ -80,8 +80,8 @@ VS Code doesn't let extensions set a line's height directly, but colour theme to
 ```json
 "editor.tokenColorCustomizations": {
   "textMateRules": [
-    { "scope": "meta.mathview.tall", "settings": { "lineHeight": 2.4 } },
-    { "scope": "meta.mathview.medium", "settings": { "lineHeight": 1.7 } }
+    { "scope": "meta.mathview.tall", "settings": { "lineHeight": 3 } },
+    { "scope": "meta.mathview.medium", "settings": { "lineHeight": 2 } }
   ]
 }
 ```
@@ -111,6 +111,7 @@ code --install-extension vscode-math-0.1.0.vsix
 | `mathView.enabled` | `true` | Symbol substitution on or off. Also **Math View: Toggle Symbol Substitution** in the command palette. |
 | `mathView.revealOnCursorLine` | `true` | Show the original text on lines with a cursor. |
 | `mathView.inline` | `tall` | `tall`: draw maths full size, making lines taller where needed. `compact`: fit everything in a normal line. `off`: leave code as it is (hovers still work). |
+| `mathView.scale` | `1` | How big to draw maths. Lines with Σ get `1 + 2 × scale` times the normal height, fractions `1 + scale`; the maths is drawn 1.35 × scale the editor font. Changing it updates Math View's line-height rules in your settings. |
 | `mathView.hover` | `true` | Show drawn maths larger on hover, with its LaTeX. |
 | `mathView.hoverScale` | `1.4` | Size of the hover maths. |
 

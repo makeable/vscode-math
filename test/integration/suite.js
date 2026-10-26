@@ -188,6 +188,21 @@ exports.run = async () => {
     assert.strictEqual(at('const area'), 'normal');
   });
 
+  await check('scale setting writes and removes line-height rules', async () => {
+    const editorCfg = () => vscode.workspace.getConfiguration('editor');
+    const cfg = vscode.workspace.getConfiguration('mathView');
+    await cfg.update('scale', 1.5, vscode.ConfigurationTarget.Global);
+    await new Promise(r => setTimeout(r, 500));
+    const rules = (editorCfg().inspect('tokenColorCustomizations').globalValue || {}).textMateRules || [];
+    const tall = rules.find(r => r.scope === 'meta.mathview.tall');
+    assert.ok(tall && tall.settings.lineHeight === 4, JSON.stringify(rules));
+    await cfg.update('scale', undefined, vscode.ConfigurationTarget.Global);
+    await new Promise(r => setTimeout(r, 500));
+    assert.strictEqual(editorCfg().inspect('tokenColorCustomizations').globalValue, undefined);
+    const effective = JSON.stringify(editorCfg().get('tokenColorCustomizations'));
+    assert.ok(effective.includes('"lineHeight":3'), effective);
+  });
+
   console.log('\n' + results.join('\n') + '\n');
   const failed = results.filter(r => r.startsWith('FAIL'));
   if (failed.length) throw new Error(`${failed.length} integration check(s) failed`);
