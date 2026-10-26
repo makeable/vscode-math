@@ -13,7 +13,7 @@ const LANGUAGES = {
   julia: 'julia',
 };
 
-const TABLES = ['bigOperators', 'functions', 'identifiers', 'ranges'];
+const TABLES = ['bigOperators', 'functions', 'identifiers', 'ranges', 'syntax', 'nameSuffixes'];
 
 function profileFor(languageId) {
   return LANGUAGES[languageId] || null;

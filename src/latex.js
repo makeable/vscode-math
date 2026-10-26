@@ -23,7 +23,8 @@ function toLatex(src, notation = defaultNotation()) {
 /** Like toLatex, but only succeeds for a big operator call such as sum(... for ...). */
 function bigOpToLatex(src, notation = defaultNotation()) {
   const ast = parseWith(src, notation);
-  if (ast.k !== 'call' || ast.args.length !== 1 || ast.args[0].k !== 'gen') {
+  const a = ast.k === 'call' && ast.args.length === 1 ? ast.args[0] : null;
+  if (!a || !(a.k === 'gen' || (a.k === 'star' && a.e.k === 'gen'))) {
     throw new Error('not a big operator call');
   }
   return toTex(ast, notation);

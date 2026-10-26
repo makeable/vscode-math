@@ -1,7 +1,7 @@
 {
   "name": "vscode-math",
   "displayName": "Math View",
-  "description": "Shows code with math notation: ≤ ≠ → λ in the editor, and sums like sum(x[i] for i in range(1, n+1)) as a typeset Σ. Files stay plain ASCII.",
+  "description": "Shows code as maths: Σ ∏ ∫ lim, fractions, matrices, piecewise cases, ∀ ∃ and set-builder notation drawn in the editor, plus ≤ ≠ → λ symbols. Files stay plain text.",
   "version": "0.1.0",
   "publisher": "makeable",
   "license": "MIT",
@@ -59,11 +59,11 @@
           ],
           "default": "tall",
           "enumDescriptions": [
-            "Full stacked Σ with limits above and below. Lines containing a sum are made taller to fit.",
-            "Limits beside the Σ so the maths fits a normal line height.",
-            "Leave sums as code; use the hover instead."
+            "Draw maths full size. Lines with big notation (Σ, ∫, fractions, matrices...) are made taller to fit.",
+            "Draw maths within a normal line height, with limits beside the Σ.",
+            "Leave code as it is; use the hover instead."
           ],
-          "description": "Show sums as typeset math directly in the editor, on lines without a cursor.",
+          "description": "Draw maths in the editor on lines without a cursor.",
           "scope": "language-overridable"
         },
         "mathView.hover": {
@@ -108,7 +108,7 @@
               "null"
             ]
           },
-          "markdownDescription": "Calls written with a generator, like `sum(f(i) for i in range(n))`, and the LaTeX symbol to draw, e.g. `{ \"logsumexp\": \"\\\\operatorname{LSE}\" }`. Merged with the built-ins; `null` removes one. Changing this regenerates the tall-line grammar and asks to reload."
+          "markdownDescription": "Calls written with a generator, like `sum(f(i) for i in range(n))`. A plain LaTeX symbol is drawn with limits under and over (`{ \"logsumexp\": \"\\\\operatorname{LSE}\" }`); a template can use `$body`, `$vars`, `$domain`, `$conds`, `$in` (x ∈ S, cond), `$under` and `$over` (`{ \"mean\": \"\\\\frac{1}{|$domain|} \\\\sum_{$in} $body\" }`). Merged with the built-ins; `null` removes one. Changing this regenerates the tall-line grammar and asks to reload."
         },
         "mathView.functions": {
           "type": "object",
@@ -122,7 +122,7 @@
               "null"
             ]
           },
-          "markdownDescription": "How to draw function calls, as LaTeX templates. `$1`, `$2` are the arguments, `$args` all of them, and `$1|atom` brackets an argument unless it is a single symbol. Key by name, or `name/arity` to match a number of arguments. A list of templates is tried in order.\n\nExample: `{ \"softplus\": \"\\\\log\\\\left(1 + e^{$1}\\\\right)\", \"hypot/2\": \"\\\\sqrt{$1^2 + $2^2}\" }`"
+          "markdownDescription": "How to draw function calls, as LaTeX templates. `$1`, `$2` are the arguments, `$args` all of them, `$0` the object a method is called on, `$name` a keyword argument, `$1.var`/`$1.body` a lambda's parameters and body, `$2.0` an item of a tuple. Filters: `$1|atom` brackets unless it is a single symbol, `$1|rows` draws a list of lists as matrix rows, `$1|domain` draws `range(n)` as {0, …, n−1}.\n\nKeys: `name`, `name/arity`, `name[keyword]`, `.method`, `.attribute`. A list of templates is tried in order. An object adds options: `{ \"template\": \"...\", \"height\": \"tall\", \"display\": false }`.\n\nExample: `{ \"softplus\": \"\\\\log\\\\left(1 + e^{$1}\\\\right)\", \"hypot/2\": \"\\\\sqrt{$1^2 + $2^2}\" }`"
         },
         "mathView.identifiers": {
           "type": "object",
@@ -158,6 +158,31 @@
             }
           },
           "markdownDescription": "Iterables that become the limits of a sum, keyed `name/arity`. `from` and `to` are written in the document's language (not LaTeX) with `$1`, `$2` for the arguments, and get simplified. Example: `{ \"np.arange/2\": { \"from\": \"$1\", \"to\": \"$2 - 1\" } }`. Use `set` instead to give LaTeX for the whole domain."
+        },
+        "mathView.syntax": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "object",
+              "null"
+            ]
+          },
+          "markdownDescription": "Templates for operators and other syntax: `fraction`, `floorDiv`, `matmul`, `piecewise` (ternaries), `setComprehension`, `listComprehension`, `lambda`, `adjoint`. Set one to `null` to stop drawing it, or give `{ \"template\": \"...\", \"display\": false }` to draw it only inside other maths. Example: `{ \"fraction\": { \"template\": \"$1 / $2\", \"display\": false } }`."
+        },
+        "mathView.nameSuffixes": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "markdownDescription": "Name endings drawn as accents, with `$1` for the rest of the name: `x_hat` → x̂. Built in: `_hat _bar _tilde _vec _dot _ddot _prime _star _inv _T _sq`. Example: `{ \"_dag\": \"$1^{\\\\dagger}\" }`."
         },
         "mathView.modulePrefixes": {
           "type": "array",
@@ -199,6 +224,12 @@
             "scope": "meta.mathview.tall",
             "settings": {
               "lineHeight": 2.4
+            }
+          },
+          {
+            "scope": "meta.mathview.medium",
+            "settings": {
+              "lineHeight": 1.7
             }
           }
         ]

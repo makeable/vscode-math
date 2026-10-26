@@ -12,6 +12,7 @@ Object.assign(identifiers, {
   inf: '\\infty',
   Inf: '\\infty',
   Infinity: '\\infty',
+  eps: '\\epsilon',
 });
 
 module.exports = { identifiers };

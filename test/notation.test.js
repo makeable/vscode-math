@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { buildNotation } = require('../src/notation');
 const { bigOpToLatex, toLatex } = require('../src/latex');
-const { buildGrammar, tallPatterns } = require('../src/grammar');
+const { buildGrammar, lineLevelTester } = require('../src/grammar');
 
 test('a new big operator from settings', () => {
   const n = buildNotation('python', { bigOperators: { logsumexp: '\\operatorname{LSE}' } });
@@ -67,9 +67,9 @@ test('generated grammar follows the big operators', () => {
   const g = buildGrammar('python', n);
   assert.strictEqual(g.scopeName, 'mathview.python');
   assert.ok(g.patterns[0].match.includes('logsumexp'));
-  const re = new RegExp(tallPatterns(n)[0]);
-  assert.ok(re.test('y = logsumexp(z[i] for i in range(k))'));
-  assert.ok(!re.test('y = logsumexp(z)'));
+  const level = lineLevelTester(n, 'python');
+  assert.strictEqual(level('y = logsumexp(z[i] for i in range(k))'), 'tall');
+  assert.strictEqual(level('y = logsumexp(z)'), 'normal');
 });
 
 test('committed grammar files match the built-in notation', () => {

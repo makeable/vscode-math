@@ -136,6 +136,33 @@ exports.run = async () => {
     await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
   });
 
+  const sym = await vscode.workspace.openTextDocument(path.join(examples, 'symbols.py'));
+  await check('showcase: every maths line becomes a piece', async () => {
+    const spans = ext.exports.spansFor(sym);
+    const text = sym.getText();
+    const lines = new Set(spans.map(sp => sym.positionAt(sp.start).line));
+    // every assignment after the imports, except df's plain gradient
+    const expected = text.split('\n').map((l, i) => [l, i]).filter(([l]) => /^\w+ = /.test(l)).map(([, i]) => i);
+    const missing = expected.filter(i => !lines.has(i));
+    assert.deepStrictEqual(missing.map(i => text.split('\n')[i]), []);
+  });
+
+  await check('showcase: multi-line matrix hovers from its second line', async () => {
+    const md = await hoverAt(sym, '[math.sin(theta)', 2);
+    assert.ok(md[0] && md[0].includes('\\begin{bmatrix}'), md[0] && md[0].slice(-150));
+  });
+
+  await check('showcase: line heights follow the notation', async () => {
+    const levels = ext.exports.levelsFor(sym);
+    const at = needle => levels[sym.positionAt(sym.getText().indexOf(needle)).line];
+    assert.strictEqual(at('total = sum'), 'tall');
+    assert.strictEqual(at('positive = all'), 'medium');
+    assert.strictEqual(at('root = '), 'medium');
+    assert.strictEqual(at('density = '), 'tall');
+    assert.strictEqual(at('length = '), 'normal');
+    assert.strictEqual(at('# Calculus'), 'normal');
+  });
+
   console.log('\n' + results.join('\n') + '\n');
   const failed = results.filter(r => r.startsWith('FAIL'));
   if (failed.length) throw new Error(`${failed.length} integration check(s) failed`);
