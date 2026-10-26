@@ -3,3 +3,4 @@ docs/**
 .vscode/**
 node_modules/@vscode/**
 **/*.vsix
+scripts/**

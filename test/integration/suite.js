@@ -72,7 +72,7 @@ exports.run = async () => {
 
   await check('tall-line rule is on by default', async () => {
     const v = vscode.workspace.getConfiguration('editor').get('tokenColorCustomizations');
-    assert.ok(JSON.stringify(v).includes('meta.mathview.bigop'), JSON.stringify(v));
+    assert.ok(JSON.stringify(v).includes('meta.mathview.tall'), JSON.stringify(v));
     assert.strictEqual(vscode.workspace.getConfiguration('mathView').get('inline'), 'tall');
   });
 
@@ -83,6 +83,57 @@ exports.run = async () => {
     const dir = path.join(ext.exports?.storageDir || '', '');
     const files = dir ? fs.readdirSync(dir).filter(f => f.endsWith('.svg')) : [];
     assert.ok(files.length >= 5, `found ${files.length} SVGs in ${dir}`);
+  });
+
+  await check('notation settings change the hover', async () => {
+    const cfg = vscode.workspace.getConfiguration('mathView');
+    await cfg.update('bigOperators', { sum: '\\Sigma' }, vscode.ConfigurationTarget.Global);
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const md = await hoverAt(py, 'sum(x[i] for i in range(1, n+1))', 5);
+      assert.ok(md[0].includes('\\Sigma_{i=1}^{n} x_{i}'), md[0] && md[0].slice(-120));
+    } finally {
+      await cfg.update('bigOperators', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
+  await check('language-specific settings apply only to that language', async () => {
+    const cfg = vscode.workspace.getConfiguration('mathView', { languageId: 'julia' });
+    await cfg.update('functions', { sqrt: '\\operatorname{root}($1)' }, vscode.ConfigurationTarget.Global, true);
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const pyDoc = await vscode.workspace.openTextDocument({ language: 'python', content: 'y = sum(sqrt(x[i]) for i in range(n))' });
+      const pyMd = await hoverAt(pyDoc, 'sum(', 1);
+      const jl2 = await vscode.workspace.openTextDocument({ language: 'julia', content: 'y = sum(sqrt(x[i]) for i in 1:n)' });
+      const jlMd = await hoverAt(jl2, 'sum(', 1);
+      assert.ok(jlMd[0].includes('\\operatorname{root}(x_{i})'), jlMd[0] && jlMd[0].slice(-120));
+      assert.ok(pyMd[0].includes('\\sqrt{x_{i}}') && !pyMd[0].includes('root'), pyMd[0] && pyMd[0].slice(-120));
+    } finally {
+      await cfg.update('functions', undefined, vscode.ConfigurationTarget.Global, true);
+    }
+  });
+
+  await check('changing big operators regenerates the grammar, and it is restored', async () => {
+    const fs = require('fs');
+    const file = path.resolve(__dirname, '../../syntaxes/mathview.python.json');
+    const before = fs.readFileSync(file, 'utf8');
+    const cfg = vscode.workspace.getConfiguration('mathView');
+    await cfg.update('bigOperators', { logsumexp: '\\operatorname{LSE}' }, vscode.ConfigurationTarget.Global);
+    await new Promise(r => setTimeout(r, 300));
+    const during = fs.readFileSync(file, 'utf8');
+    await cfg.update('bigOperators', undefined, vscode.ConfigurationTarget.Global);
+    await new Promise(r => setTimeout(r, 300));
+    const after = fs.readFileSync(file, 'utf8');
+    assert.ok(during.includes('logsumexp'), 'grammar not regenerated');
+    assert.strictEqual(after, before, 'grammar not restored');
+  });
+
+  await check('show notation command opens the merged tables', async () => {
+    await vscode.window.showTextDocument(py);
+    await vscode.commands.executeCommand('mathView.showNotation');
+    const text = vscode.window.activeTextEditor.document.getText();
+    assert.ok(text.includes('"bigOperators"') && text.includes('"range/2"'), text.slice(0, 200));
+    await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
   });
 
   console.log('\n' + results.join('\n') + '\n');

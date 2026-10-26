@@ -1,7 +1,11 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { bigOpToLatex, findBigOpCalls } = require('../src/latex');
+const { bigOpToLatex: big, findBigOpCalls, defaultNotation } = require('../src/latex');
+
+const JULIA = /1:|i = |∈/;
+// Julia cases use Julia's notation; everything else is Python.
+const bigOpToLatex = src => big(src, defaultNotation(JULIA.test(src) ? 'julia' : 'python'));
 
 const cases = [
   // the example from the chat: sum of x_i for i = 1..n

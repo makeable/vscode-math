@@ -13,12 +13,12 @@ A VS Code extension that makes code read more like maths, without changing the f
 
 ## How the tall lines work
 
-VS Code doesn't let extensions set a line's height directly, but colour theme token rules can. The extension adds a grammar scope, `meta.mathview.bigop`, to lines containing a sum, and a default setting that makes that scope's lines 2.4× taller:
+VS Code doesn't let extensions set a line's height directly, but colour theme token rules can. The extension adds a grammar scope, `meta.mathview.tall`, to lines containing a sum, and a default setting that makes that scope's lines 2.4× taller:
 
 ```json
 "editor.tokenColorCustomizations": {
   "textMateRules": [
-    { "scope": "meta.mathview.bigop", "settings": { "lineHeight": 2.4 } }
+    { "scope": "meta.mathview.tall", "settings": { "lineHeight": 2.4 } }
   ]
 }
 ```
@@ -64,17 +64,55 @@ Inside the sum it handles `+ - * / // % **`, indexing (`x[i]` → xᵢ), `sqrt`,
 | `mathView.inline` | `tall` | `tall`: full stacked Σ in a taller line. `compact`: limits beside the Σ, normal line height. `off`: leave sums as code. |
 | `mathView.hover` | `true` | Typeset sums on hover. |
 | `mathView.hoverScale` | `1.4` | Size of the hover maths. |
-| `mathView.substitutions` | see `package.json` | List of `{ "pattern", "symbol", "languages"? }`. `pattern` is a JavaScript regex. |
 
-Adding your own symbol, for example `**` as a superscript-style `^` in Python only:
+## Notation is config driven
 
-```json
-"mathView.substitutions": [
-  { "pattern": "\\*\\*", "symbol": "^", "languages": ["python"] }
-]
+Everything the extension knows about maths lives in tables: which calls are big operators, how functions are drawn, which names are symbols, and what counts as a range. The built-in tables are in [`src/notation/`](src/notation). Your settings are merged on top of them:
+
+| Setting | What it holds |
+|---|---|
+| `mathView.bigOperators` | Calls with a generator, e.g. `sum(f(i) for i in ...)`, and their LaTeX symbol |
+| `mathView.functions` | LaTeX templates for function calls |
+| `mathView.identifiers` | Names and constants drawn as LaTeX |
+| `mathView.ranges` | Iterables that become the limits of a sum |
+| `mathView.modulePrefixes` | Module names ignored in lookups, so `np.sqrt` uses `sqrt` |
+| `mathView.symbols` | Symbol substitutions: regex → symbol |
+| `mathView.builtinNotation`, `mathView.builtinSymbols` | Turn off to start from empty tables |
+
+Run **Math View: Show Notation for This Language** to see the merged tables for the file you're in.
+
+Rules for all of them:
+
+- **Merging:** your entries are added to the built-ins, or replace one with the same key. Set a key to `null` to remove a built-in. For `modulePrefixes`, start an entry with `-` to remove one.
+- **Per language:** every setting works inside VS Code's language blocks, so Python and Julia can differ.
+- **Per project:** put them in `.vscode/settings.json` to give a repo its own notation.
+
+An example that adds a little of everything:
+
+```jsonc
+"[python]": {
+  "mathView.bigOperators": {
+    "logsumexp": "\\operatorname{LSE}"          // logsumexp(z[i] for i in range(k))
+  },
+  "mathView.functions": {
+    "softplus": "\\log\\left(1 + e^{$1}\\right)",
+    "hypot/2": "\\sqrt{$1^2 + $2^2}",             // name/arity matches by number of arguments
+    "clip": [                                     // a list is tried in order
+      "\\operatorname{clip}_{[$2, $3]}($1)",
+      "\\operatorname{clip}($1)"
+    ]
+  },
+  "mathView.identifiers": { "hbar": "\\hbar" },
+  "mathView.ranges": {
+    "arange/2": { "from": "$1", "to": "$2 - 1" }  // written in Python, then simplified
+  },
+  "mathView.symbols": { "\\*\\*": "^", "!=": null }
+}
 ```
 
-Setting this list replaces the defaults, so copy the ones you want to keep from `package.json`.
+Template placeholders: `$1`, `$2` are arguments converted to LaTeX, `$args` is all of them, and `$1|atom` brackets an argument unless it's a single symbol. Range limits (`from`, `to`) are written in the document's language rather than LaTeX, so `range(1, n+1)` gets an upper limit of `n`, not `n + 1 - 1`.
+
+Changing `bigOperators` also changes which lines are made taller. VS Code only reads that grammar at startup, so the extension rewrites it and offers to reload the window.
 
 ## Limitations
 
@@ -95,4 +133,11 @@ npm run test:vscode
 
 `npm test` runs the parser tests. `npm run test:vscode` runs the extension inside your installed VS Code with a throwaway profile and checks the hovers.
 
-Files: `extension.js` (decorations, hover), `src/latex.js` (code → LaTeX), `src/render.js` (LaTeX → SVG via MathJax).
+Files:
+
+- `extension.js`: decorations, hover, settings
+- `src/notation/`: built-in notation tables per language
+- `src/parse/`: expression parsers
+- `src/tex.js`: parsed code → LaTeX, driven by a notation
+- `src/grammar.js`: generates the tall-line grammars in `syntaxes/` (`npm run grammars` after changing the built-ins)
+- `src/render.js`: LaTeX → SVG via MathJax

@@ -29,6 +29,10 @@
       {
         "command": "mathView.toggle",
         "title": "Math View: Toggle Symbol Substitution"
+      },
+      {
+        "command": "mathView.showNotation",
+        "title": "Math View: Show Notation for This Language"
       }
     ],
     "configuration": {
@@ -37,12 +41,14 @@
         "mathView.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show symbols like ≤ and → in place of <= and ->."
+          "description": "Show symbols like ≤ and → in place of <= and ->.",
+          "scope": "language-overridable"
         },
         "mathView.revealOnCursorLine": {
           "type": "boolean",
           "default": true,
-          "description": "Show the original text on lines that have a cursor or selection, so you never edit hidden characters."
+          "description": "Show the original text on lines that have a cursor or selection, so you never edit hidden characters.",
+          "scope": "language-overridable"
         },
         "mathView.inline": {
           "type": "string",
@@ -57,12 +63,14 @@
             "Limits beside the Σ so the maths fits a normal line height.",
             "Leave sums as code; use the hover instead."
           ],
-          "description": "Show sums as typeset math directly in the editor, on lines without a cursor."
+          "description": "Show sums as typeset math directly in the editor, on lines without a cursor.",
+          "scope": "language-overridable"
         },
         "mathView.hover": {
           "type": "boolean",
           "default": true,
-          "description": "Show sums like sum(x[i] for i in range(1, n+1)) as typeset math on hover."
+          "description": "Show sums like sum(x[i] for i in range(1, n+1)) as typeset math on hover.",
+          "scope": "language-overridable"
         },
         "mathView.hoverScale": {
           "type": "number",
@@ -71,134 +79,115 @@
           "maximum": 4,
           "description": "Size of the rendered math in hovers."
         },
-        "mathView.substitutions": {
-          "type": "array",
-          "description": "Text patterns to display as symbols. 'pattern' is a JavaScript regular expression. 'languages' limits a rule to certain language ids; leave it out to apply everywhere.",
-          "items": {
-            "type": "object",
-            "required": [
-              "pattern",
-              "symbol"
+        "mathView.symbols": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "markdownDescription": "Extra symbol substitutions: a JavaScript regex (the key) and the symbol shown in its place. Merged with the built-in ones; set a built-in key to `null` to turn it off. Run **Math View: Show Notation for This Language** to see them all.\n\nExample: `{ \"\\\\*\\\\*\": \"^\", \"!=\": null }`"
+        },
+        "mathView.builtinSymbols": {
+          "type": "boolean",
+          "scope": "language-overridable",
+          "default": true,
+          "description": "Start from the built-in symbol substitutions. Turn off to use only mathView.symbols."
+        },
+        "mathView.bigOperators": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "object",
+              "null"
+            ]
+          },
+          "markdownDescription": "Calls written with a generator, like `sum(f(i) for i in range(n))`, and the LaTeX symbol to draw, e.g. `{ \"logsumexp\": \"\\\\operatorname{LSE}\" }`. Merged with the built-ins; `null` removes one. Changing this regenerates the tall-line grammar and asks to reload."
+        },
+        "mathView.functions": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "array",
+              "object",
+              "null"
+            ]
+          },
+          "markdownDescription": "How to draw function calls, as LaTeX templates. `$1`, `$2` are the arguments, `$args` all of them, and `$1|atom` brackets an argument unless it is a single symbol. Key by name, or `name/arity` to match a number of arguments. A list of templates is tried in order.\n\nExample: `{ \"softplus\": \"\\\\log\\\\left(1 + e^{$1}\\\\right)\", \"hypot/2\": \"\\\\sqrt{$1^2 + $2^2}\" }`"
+        },
+        "mathView.identifiers": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "markdownDescription": "Names and constants to draw as LaTeX, e.g. `{ \"hbar\": \"\\\\hbar\" }`. Greek letter names are built in."
+        },
+        "mathView.ranges": {
+          "type": "object",
+          "scope": "language-overridable",
+          "default": {},
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
             ],
             "properties": {
-              "pattern": {
+              "from": {
                 "type": "string"
               },
-              "symbol": {
+              "to": {
                 "type": "string"
               },
-              "languages": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "set": {
+                "type": "string"
               }
             }
           },
-          "default": [
-            {
-              "pattern": "<=",
-              "symbol": "≤"
-            },
-            {
-              "pattern": ">=",
-              "symbol": "≥"
-            },
-            {
-              "pattern": "!=",
-              "symbol": "≠"
-            },
-            {
-              "pattern": "->",
-              "symbol": "→"
-            },
-            {
-              "pattern": "=>",
-              "symbol": "⇒"
-            },
-            {
-              "pattern": "\\blambda\\b",
-              "symbol": "λ",
-              "languages": [
-                "python"
-              ]
-            },
-            {
-              "pattern": "\\b(?:math\\.|np\\.|numpy\\.)?sqrt\\b",
-              "symbol": "√"
-            },
-            {
-              "pattern": "\\b(?:math\\.|np\\.|numpy\\.)pi\\b",
-              "symbol": "π",
-              "languages": [
-                "python"
-              ]
-            },
-            {
-              "pattern": "\\bnot in\\b",
-              "symbol": "∉",
-              "languages": [
-                "python"
-              ]
-            },
-            {
-              "pattern": "(?<=\\bfor \\w+ )in\\b",
-              "symbol": "∈",
-              "languages": [
-                "python",
-                "julia"
-              ]
-            },
-            {
-              "pattern": "\\binf\\b|\\bInf\\b|\\bInfinity\\b",
-              "symbol": "∞"
-            },
-            {
-              "pattern": "\\balpha\\b",
-              "symbol": "α"
-            },
-            {
-              "pattern": "\\bbeta\\b",
-              "symbol": "β"
-            },
-            {
-              "pattern": "\\bgamma\\b",
-              "symbol": "γ"
-            },
-            {
-              "pattern": "\\bdelta\\b",
-              "symbol": "δ"
-            },
-            {
-              "pattern": "\\bepsilon\\b",
-              "symbol": "ε"
-            },
-            {
-              "pattern": "\\btheta\\b",
-              "symbol": "θ"
-            },
-            {
-              "pattern": "\\bmu\\b",
-              "symbol": "μ"
-            },
-            {
-              "pattern": "\\bsigma\\b",
-              "symbol": "σ"
-            },
-            {
-              "pattern": "\\bomega\\b",
-              "symbol": "ω"
-            }
-          ]
+          "markdownDescription": "Iterables that become the limits of a sum, keyed `name/arity`. `from` and `to` are written in the document's language (not LaTeX) with `$1`, `$2` for the arguments, and get simplified. Example: `{ \"np.arange/2\": { \"from\": \"$1\", \"to\": \"$2 - 1\" } }`. Use `set` instead to give LaTeX for the whole domain."
+        },
+        "mathView.modulePrefixes": {
+          "type": "array",
+          "scope": "language-overridable",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Module names to ignore when looking up notation, so `np.sqrt` uses the `sqrt` entry. Added to the built-ins; start an entry with `-` to remove a built-in one, e.g. `\"-torch\"`."
+        },
+        "mathView.builtinNotation": {
+          "type": "boolean",
+          "scope": "language-overridable",
+          "default": true,
+          "description": "Start from the built-in notation tables. Turn off to use only your own bigOperators, functions, identifiers, ranges and modulePrefixes."
         }
       }
     },
     "grammars": [
       {
-        "scopeName": "mathview.injection",
-        "path": "./syntaxes/mathview.injection.json",
+        "scopeName": "mathview.python",
+        "path": "./syntaxes/mathview.python.json",
         "injectTo": [
-          "source.python",
+          "source.python"
+        ]
+      },
+      {
+        "scopeName": "mathview.julia",
+        "path": "./syntaxes/mathview.julia.json",
+        "injectTo": [
           "source.julia"
         ]
       }
@@ -207,7 +196,7 @@
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
-            "scope": "meta.mathview.bigop",
+            "scope": "meta.mathview.tall",
             "settings": {
               "lineHeight": 2.4
             }
@@ -217,9 +206,10 @@
     }
   },
   "scripts": {
-    "test": "node --test test/latex.test.js",
+    "test": "node --test test/*.test.js",
     "package": "npx --yes @vscode/vsce@3.2.1 package",
-    "test:vscode": "node test/integration/run.js"
+    "test:vscode": "node test/integration/run.js",
+    "grammars": "node scripts/build-grammars.js"
   },
   "dependencies": {
     "mathjax-full": "3.2.2"
