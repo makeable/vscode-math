@@ -177,7 +177,7 @@
               "null"
             ]
           },
-          "markdownDescription": "Templates for operators and other syntax: `fraction`, `floorDiv`, `matmul`, `piecewise` (ternaries), `setComprehension`, `listComprehension`, `lambda`, `adjoint`. Set one to `null` to stop drawing it, or give `{ \"template\": \"...\", \"display\": false }` to draw it only inside other maths. Example: `{ \"fraction\": { \"template\": \"$1 / $2\", \"display\": false } }`."
+          "markdownDescription": "Templates for operators and other syntax: `power`, `fraction`, `floorDiv`, `matmul`, `piecewise` (ternaries), `setComprehension`, `listComprehension`, `lambda`, `adjoint`. Set one to `null` to stop drawing it, or give `{ \"template\": \"...\", \"display\": false }` to draw it only inside other maths. Example: `{ \"fraction\": { \"template\": \"$1 / $2\", \"display\": false } }`."
         },
         "mathView.nameSuffixes": {
           "type": "object",

@@ -562,7 +562,11 @@ function texNode(n, ctx) {
           const l = tex(n.l, ctx);
           const base = isAtomic(n.l, ctx, l) && !/^\\begin|^e\^/.test(l) && !(n.l.k === 'index' && /\^/.test(l))
             ? l : `\\left(${l}\\right)`;
-          return `${base}^{${tex(unparen(n.r), ctx)}}`;
+          const exp = tex(unparen(n.r), ctx);
+          // syntax.power: whether a power on its own makes a line worth drawing
+          const info = entryInfo(ctx.n.syntax && ctx.n.syntax.power);
+          const out = info && applyTemplates(info, k => ({ 1: base, 2: exp })[k] || '', ctx);
+          return out || `${base}^{${exp}}`;
         }
         case 'and': return `${wrap(n.l, 2, ctx)} \\land ${wrap(n.r, 2, ctx)}`;
         case 'or': return `${wrap(n.l, 1, ctx)} \\lor ${wrap(n.r, 1, ctx)}`;

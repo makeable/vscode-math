@@ -61,7 +61,7 @@ JavaScript has no generator syntax, so Math View recognises the usual shapes of 
 | `_.sumBy(xs, x => f(x))`, `d3.sum(xs, f)`, `d3.mean(xs, f)` | Σ, mean |
 | `_.maxBy(models, m => score(m))` | argmax |
 | `(-b + Math.sqrt(b ** 2 - 4 * a * c)) / (2 * a)` | the quadratic formula |
-| `Math.hypot(dx, dy)`, `Math.log(x) / Math.LN2` | √(dx² + dy²), ln x / ln 2 |
+| `Math.PI * r ** 2`, `Math.hypot(dx, dy)`, `Math.log(x) / Math.LN2` | πr², √(dx² + dy²), ln x / ln 2 |
 | `math.multiply(math.inv(...), math.transpose(A))`, `tf.matMul(W, x)` | (AᵀA)⁻¹Aᵀ, Wx |
 | `math.matrix([[1, 2], [3, 4]])` | a bracketed matrix |
 | `x < 0 ? -1 : x === 0 ? 0 : 1` | a piecewise { with cases |
@@ -129,7 +129,7 @@ Everything the extension knows about maths lives in tables: which calls are big 
 | `mathView.functions` | LaTeX templates for function calls |
 | `mathView.identifiers` | Names and constants drawn as LaTeX |
 | `mathView.ranges` | Iterables that become the limits of a sum |
-| `mathView.syntax` | Operators and syntax: `fraction`, `floorDiv`, `matmul`, `piecewise`, `setComprehension`, `listComprehension`, `lambda`, `adjoint` |
+| `mathView.syntax` | Operators and syntax: `power`, `fraction`, `floorDiv`, `matmul`, `piecewise`, `setComprehension`, `listComprehension`, `lambda`, `adjoint` |
 | `mathView.nameSuffixes` | Name endings drawn as accents: `_hat` → x̂ (and `xHat` in JavaScript) |
 | `mathView.reducers` | JavaScript: which `reduce` operations become which big operator |
 | `mathView.modulePrefixes` | Module names ignored in lookups, so `np.sqrt` uses `sqrt` |

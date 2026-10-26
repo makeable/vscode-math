@@ -250,6 +250,7 @@ module.exports = {
 
   // Operators and other syntax.
   syntax: {
+    power: '$1^{$2}', // x**2 -> x²: a power alone is enough to draw a line
     fraction: medium('\\frac{$1}{$2}'),
     floorDiv: medium('\\left\\lfloor \\frac{$1}{$2} \\right\\rfloor'),
     matmul: quiet('$1 $2'),

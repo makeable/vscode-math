@@ -48,6 +48,12 @@ const cases = [
 ];
 for (const [src, want] of cases) test(`js: ${src}`, () => assert.strictEqual(latex(src), want));
 
+test('js: a power alone is enough to draw a line, unless turned off', () => {
+  assert.strictEqual(render(parse('Math.PI * r ** 2'), JS).display, true);
+  const off = buildNotation('javascript', { syntax: { power: { template: '$1^{$2}', display: false } } });
+  assert.strictEqual(render(parse('Math.PI * r ** 2'), off).display, false);
+});
+
 test('js: things that are not maths are refused', () => {
   for (const src of ['f(x) ?? 0', 'a | b', '`total ${n}` + 1', 'new Foo(x) / 2', 'x++']) {
     assert.throws(() => render(parse(src), JS), src);

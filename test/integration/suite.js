@@ -169,7 +169,7 @@ exports.run = async () => {
     const spans = ext.exports.spansFor(ts);
     const lines = new Set(spans.map(sp => ts.positionAt(sp.start).line));
     const text = ts.getText().split('\n');
-    const skip = /^const (area|normal) /; // area has only symbols; normal is drawn inside
+    const skip = /^const normal /; // normal is drawn as its inner product
     const expected = text.map((l, i) => [l, i]).filter(([l]) => /^const \w+ = /.test(l) && !skip.test(l)).map(([, i]) => i);
     assert.deepStrictEqual(expected.filter(i => !lines.has(i)).map(i => text[i]), []);
   });

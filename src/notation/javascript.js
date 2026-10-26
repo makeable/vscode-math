@@ -186,6 +186,7 @@ module.exports = {
   },
 
   syntax: {
+    power: python.syntax.power,
     fraction: python.syntax.fraction,
     piecewise: python.syntax.piecewise,
     lambda: quiet('$params \\mapsto $body'),
